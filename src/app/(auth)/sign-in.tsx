@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { StyleSheet, View, type TextInput } from 'react-native';
 
@@ -18,15 +18,17 @@ import { normalizeIdentifier, validateIdentifier } from '@/lib/identifier';
 import { spacing } from '@/theme';
 
 const METHODS = [
-  { value: 'email', label: 'Email' },
   { value: 'phone', label: 'Phone' },
+  { value: 'email', label: 'Email' },
 ] as const;
 
 export default function SignInScreen() {
   const { notice, clearNotice } = useAuth();
   const inputRef = useRef<TextInput>(null);
 
-  const [method, setMethod] = useState<IdentifierType>('email');
+  // Welcome passes the button the user tapped ("Continue with phone / email").
+  const params = useLocalSearchParams<{ method?: string }>();
+  const [method, setMethod] = useState<IdentifierType>(params.method === 'email' ? 'email' : 'phone');
   // Keep each method's draft so switching tabs doesn't lose what was typed.
   const [values, setValues] = useState<Record<IdentifierType, string>>({ email: '', phone: '' });
   const [fieldError, setFieldError] = useState<string | null>(null);

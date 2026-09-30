@@ -1,0 +1,98 @@
+{
+  "brand": {
+    "name": "Kuchu Puchu",
+    "wordmark": "kuchu puchu"
+  },
+  "common": {
+    "tryAgain": "Try again",
+    "retrying": "Checking…",
+    "errorCode": "Error code: {{code}}",
+    "back": "Back"
+  },
+  "welcome": {
+    "illustrationLabel": "Two people, matched",
+    "liveVerified": "Live verified",
+    "headline": "Real people.\nVerified live.",
+    "body": "Every profile here belongs to a real person who took a live selfie.",
+    "continuePhone": "Continue with phone",
+    "continueEmail": "Continue with email",
+    "legalPrefix": "For adults 18+. By continuing you agree to our ",
+    "terms": "Terms",
+    "legalJoin": " and ",
+    "privacy": "Privacy Policy",
+    "legalSuffix": "."
+  },
+  "updateRequired": {
+    "title": "Update Kuchu Puchu",
+    "body": "This version is no longer supported.\nUpdate to keep chatting safely.",
+    "action": "Update on Google Play",
+    "actionIos": "Update on the App Store",
+    "opening": "Opening store…"
+  },
+  "maintenance": {
+    "title": "We'll be right back",
+    "body": "Kuchu Puchu is getting an upgrade. Your matches and messages are safe. This usually takes under 30 minutes."
+  },
+  "offline": {
+    "title": "You're offline",
+    "body": "Check your internet connection.\nMessages you write will send when you're back online."
+  },
+  "genericError": {
+    "title": "Something went wrong",
+    "body": "We couldn't load Kuchu Puchu. Please try again in a moment."
+  },
+  "onboarding": {
+    "title": "Let's finish setting up",
+    "body": "Your profile isn't ready yet. Setup screens arrive in the next release.",
+    "signOut": "Sign out"
+  },
+  "home": {
+    "title": "You're in",
+    "body": "Discover, Likes, Matches and Profile arrive in the next releases.",
+    "signOut": "Sign out",
+    "signingOut": "Signing out…"
+  },
+  "session": {
+    "ended": "Your session has ended. Please sign in again."
+  },
+  "errors": {
+    "VALIDATION_ERROR": "Please check the highlighted fields.",
+    "INVALID_REQUEST": "Something about that request wasn't right. Please try again.",
+    "PAYLOAD_TOO_LARGE": "That's too much to send at once.",
+    "UNAUTHORIZED": "Your session has ended. Please sign in again.",
+    "INVALID_REFRESH_TOKEN": "Your session has ended. Please sign in again.",
+    "SESSION_EXPIRED": "Your session has ended. Please sign in again.",
+    "OTP_INVALID": "That code isn't right or has expired.",
+    "FORBIDDEN": "You don't have access to do that.",
+    "ACCOUNT_RESTRICTED": "This account can't be used right now.",
+    "REAUTH_REQUIRED": "Please confirm it's you to continue.",
+    "ONBOARDING_INCOMPLETE": "Finish setting up your account to continue.",
+    "ENTITLEMENT_REQUIRED": "This feature isn't included in your plan.",
+    "NOT_FOUND": "We couldn't find what you were looking for.",
+    "USER_NOT_FOUND": "This profile is no longer available.",
+    "PROFILE_NOT_FOUND": "This profile is no longer available.",
+    "MATCH_NOT_FOUND": "This conversation is no longer available.",
+    "PHOTO_LIMIT_REACHED": "You've added the most photos allowed. Delete one to add another.",
+    "DISCOVERY_NOT_READY": "Finish your profile setup to start discovering.",
+    "INTERACTION_ALREADY_LIKED": "You've already liked this profile.",
+    "CONTACT_DETAILS_NOT_ALLOWED": "For your safety, contact details can't be added here.",
+    "CONTACT_SHARING_LOCKED": "Numbers can't be sent in chat. Send a share request instead.",
+    "PHOTO_FACE_MISMATCH": "Your main photo must clearly show you.",
+    "PHOTO_INVALID_FILE": "Use a JPG or PNG photo, at least 400×400, under 10 MB.",
+    "OTP_COOLDOWN": "Please wait before asking for another code.",
+    "TOO_MANY_REQUESTS": "Too many attempts. Please wait and try again.",
+    "LIKE_LIMIT_REACHED": "You've used today's likes.",
+    "MESSAGE_AWAITING_REPLY": "Give them a chance to reply.",
+    "VERIFICATION_ATTEMPTS_EXCEEDED": "Try again tomorrow, or contact support.",
+    "PURCHASE_INVALID": "We couldn't activate this purchase.",
+    "PURCHASE_ALREADY_LINKED": "We couldn't activate this purchase.",
+    "OTP_DELIVERY_FAILED": "We couldn't send your code. Please try again shortly.",
+    "PROVIDER_UNAVAILABLE": "A service we rely on is unavailable. Please try again shortly.",
+    "INTERNAL_ERROR": "Something went wrong on our side. Please try again.",
+    "CONFLICT": "That conflicts with information we already have.",
+    "NETWORK_ERROR": "You're offline. Check your internet connection.",
+    "TIMEOUT": "This is taking too long. Please try again.",
+    "INVALID_RESPONSE": "We received an unexpected response. Please try again.",
+    "ABORTED": "The request was cancelled."
+  }
+}

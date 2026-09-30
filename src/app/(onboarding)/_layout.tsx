@@ -2,8 +2,8 @@ import { Stack } from 'expo-router';
 
 import { useTheme } from '@/theme';
 
-/** Signed-in app. The Discover / Likes / Matches / Profile tabs arrive in Phase 4. */
-export default function AppLayout() {
+/** Onboarding (guide §8): consent → selfie → photos → basics … Screens arrive in Phase 2. */
+export default function OnboardingLayout() {
   const { colors } = useTheme();
   return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }} />;
 }

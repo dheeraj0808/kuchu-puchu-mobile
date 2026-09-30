@@ -45,7 +45,7 @@ export function TextField({ label, error, hint, editable = true, onFocus, onBlur
           typography.body,
           {
             color: colors.text,
-            backgroundColor: editable ? colors.surface : colors.surfaceMuted,
+            backgroundColor: editable ? colors.background : colors.surface,
             borderColor,
             borderWidth: focused || error ? 2 : 1,
           },

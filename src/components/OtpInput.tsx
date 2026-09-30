@@ -1,7 +1,7 @@
 import { useState, type Ref } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
-import { radius, spacing, useTheme } from '@/theme';
+import { radius, spacing, typography, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
 
@@ -44,8 +44,8 @@ export function OtpInput({ value, onChange, length, disabled, invalid, autoFocus
             style={[
               styles.cell,
               {
-                backgroundColor: disabled ? colors.surfaceMuted : colors.surface,
-                borderColor: invalid ? colors.danger : isActive ? colors.primary : char ? colors.borderStrong : colors.border,
+                backgroundColor: disabled ? colors.surface : colors.background,
+                borderColor: invalid ? colors.danger : isActive || char ? colors.primary : colors.primaryBorder,
                 borderWidth: isActive || invalid ? 2 : 1,
               },
             ]}>
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  digit: { fontSize: 24, lineHeight: 30, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  digit: { ...typography.title, fontVariant: ['tabular-nums'] },
   caret: { position: 'absolute', width: 2, height: 24, borderRadius: 1 },
   // Covers the cells so taps focus it and OS autofill can target it. Kept
   // (nearly) invisible rather than opacity 0, which breaks iOS autofill.

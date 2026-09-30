@@ -1,31 +1,24 @@
-import { StyleSheet, View } from 'react-native';
-
-import { radius, spacing, useTheme } from '@/theme';
+import { t } from '@/i18n';
 
 import { AppText } from './AppText';
 
-/** Brand mark: two overlapping circles (two people, one connection) + name. */
-export function Wordmark() {
-  const { colors } = useTheme();
-  return (
-    <View style={styles.row} accessible accessibilityRole="image" accessibilityLabel="Kuchu Puchu">
-      <View style={styles.mark}>
-        <View style={[styles.circle, { backgroundColor: colors.primary }]} />
-        <View style={[styles.circle, styles.second, { borderColor: colors.primary, backgroundColor: colors.primarySoft }]} />
-      </View>
-      <AppText variant="heading" style={styles.name}>
-        kuchu puchu
-      </AppText>
-    </View>
-  );
+interface WordmarkProps {
+  /** `large` is the Welcome hero; `small` is the in-app header mark. */
+  size?: 'large' | 'small';
+  /** White on the pink Welcome screen, pink everywhere else. */
+  onPrimary?: boolean;
 }
 
-const SIZE = 22;
-
-const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  mark: { width: SIZE * 1.6, height: SIZE, flexDirection: 'row' },
-  circle: { width: SIZE, height: SIZE, borderRadius: radius.pill },
-  second: { marginLeft: -SIZE * 0.4, borderWidth: 2, opacity: 0.95 },
-  name: { letterSpacing: -0.2 },
-});
+/** The "kuchu puchu" wordmark: lower case, Bricolage Grotesque. */
+export function Wordmark({ size = 'small', onPrimary = false }: WordmarkProps) {
+  return (
+    <AppText
+      variant={size === 'large' ? 'wordmark' : 'heading'}
+      tone={onPrimary ? 'onPrimary' : 'primary'}
+      accessibilityRole="header"
+      accessibilityLabel={t('brand.name')}
+      maxFontSizeMultiplier={1.3}>
+      {t('brand.wordmark')}
+    </AppText>
+  );
+}

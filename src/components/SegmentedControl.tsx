@@ -29,7 +29,7 @@ export function SegmentedControl<T extends string>({
     <View
       accessibilityRole="tablist"
       accessibilityLabel={accessibilityLabel}
-      style={[styles.track, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+      style={[styles.track, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       {options.map((option) => {
         const selected = option.value === value;
         return (
@@ -41,7 +41,7 @@ export function SegmentedControl<T extends string>({
             onPress={() => !selected && onChange(option.value)}
             style={[
               styles.segment,
-              selected && { backgroundColor: colors.surface, boxShadow: colors.shadowRaised },
+              selected && { backgroundColor: colors.background, boxShadow: colors.shadowRaised },
             ]}>
             <AppText variant="label" tone={selected ? 'default' : 'muted'}>
               {option.label}

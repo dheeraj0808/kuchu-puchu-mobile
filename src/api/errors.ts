@@ -1,23 +1,53 @@
+import { t, tOptional } from '@/i18n';
+
 /**
- * Normalized API errors. `ApiError.message` is always safe to show to users:
- * raw backend text is only surfaced for codes whose messages the backend
- * explicitly designs for clients.
+ * Normalized API errors. The app reacts to `code`, never to the server's
+ * message (guide §6, §11): `ApiError.message` always comes from the locale
+ * file for that code, so it is safe to show and can be translated.
  */
 
-/** Mirrors backend/src/common/exceptions/app.exception.ts ErrorCode. */
+/** Mirrors backend/src/common/exceptions/error-codes.ts, plus client-side codes. */
 export const ErrorCode = {
-  InvalidRequest: 'INVALID_REQUEST',
+  // 400 / 413
   ValidationError: 'VALIDATION_ERROR',
+  PhotoInvalidFile: 'PHOTO_INVALID_FILE',
+  InvalidRequest: 'INVALID_REQUEST',
+  PayloadTooLarge: 'PAYLOAD_TOO_LARGE',
+  // 401
   Unauthorized: 'UNAUTHORIZED',
-  Forbidden: 'FORBIDDEN',
-  NotFound: 'NOT_FOUND',
-  TooManyRequests: 'TOO_MANY_REQUESTS',
   OtpInvalid: 'OTP_INVALID',
-  OtpCooldown: 'OTP_COOLDOWN',
-  OtpDeliveryFailed: 'OTP_DELIVERY_FAILED',
   InvalidRefreshToken: 'INVALID_REFRESH_TOKEN',
+  // 403
+  Forbidden: 'FORBIDDEN',
   AccountRestricted: 'ACCOUNT_RESTRICTED',
+  ReauthRequired: 'REAUTH_REQUIRED',
+  OnboardingIncomplete: 'ONBOARDING_INCOMPLETE',
+  EntitlementRequired: 'ENTITLEMENT_REQUIRED',
+  // 404
+  NotFound: 'NOT_FOUND',
+  UserNotFound: 'USER_NOT_FOUND',
+  ProfileNotFound: 'PROFILE_NOT_FOUND',
+  MatchNotFound: 'MATCH_NOT_FOUND',
+  // 409
+  PhotoLimitReached: 'PHOTO_LIMIT_REACHED',
+  DiscoveryNotReady: 'DISCOVERY_NOT_READY',
+  InteractionAlreadyLiked: 'INTERACTION_ALREADY_LIKED',
+  // 422
+  ContactDetailsNotAllowed: 'CONTACT_DETAILS_NOT_ALLOWED',
+  ContactSharingLocked: 'CONTACT_SHARING_LOCKED',
+  PhotoFaceMismatch: 'PHOTO_FACE_MISMATCH',
+  PurchaseInvalid: 'PURCHASE_INVALID',
+  PurchaseAlreadyLinked: 'PURCHASE_ALREADY_LINKED',
+  // 429
+  OtpCooldown: 'OTP_COOLDOWN',
+  TooManyRequests: 'TOO_MANY_REQUESTS',
+  LikeLimitReached: 'LIKE_LIMIT_REACHED',
+  MessageAwaitingReply: 'MESSAGE_AWAITING_REPLY',
+  VerificationAttemptsExceeded: 'VERIFICATION_ATTEMPTS_EXCEEDED',
+  // 5xx
   InternalError: 'INTERNAL_ERROR',
+  OtpDeliveryFailed: 'OTP_DELIVERY_FAILED',
+  ProviderUnavailable: 'PROVIDER_UNAVAILABLE',
   // Client-side only
   Conflict: 'CONFLICT',
   Network: 'NETWORK_ERROR',
@@ -29,37 +59,14 @@ export const ErrorCode = {
 
 export type ApiErrorKind = 'http' | 'network' | 'timeout' | 'aborted' | 'invalid_response' | 'session';
 
-/** Codes whose backend `message` is written for end users. */
-const CLIENT_SAFE_MESSAGE_CODES = new Set<string>([
-  ErrorCode.OtpCooldown,
-  ErrorCode.OtpDeliveryFailed,
-  ErrorCode.AccountRestricted,
-]);
-
-const CODE_MESSAGES: Record<string, string> = {
-  [ErrorCode.ValidationError]: 'Please check the highlighted details and try again.',
-  [ErrorCode.InvalidRequest]: 'Something about that request was not right. Please try again.',
-  [ErrorCode.Unauthorized]: 'Your session has ended. Please sign in again.',
-  [ErrorCode.InvalidRefreshToken]: 'Your session has ended. Please sign in again.',
-  [ErrorCode.SessionExpired]: 'Your session has ended. Please sign in again.',
-  [ErrorCode.Forbidden]: 'You don’t have access to do that.',
-  [ErrorCode.NotFound]: 'We couldn’t find what you were looking for.',
-  [ErrorCode.TooManyRequests]: 'Too many attempts. Please wait a moment and try again.',
-  [ErrorCode.OtpInvalid]: 'That code is incorrect or has expired.',
-  [ErrorCode.Conflict]: 'That conflicts with information we already have.',
-  [ErrorCode.InternalError]: 'Something went wrong on our side. Please try again shortly.',
-  [ErrorCode.Network]: 'Can’t reach Kuchu Puchu. Check your connection and try again.',
-  [ErrorCode.Timeout]: 'The server is taking too long to respond. Please try again.',
-  [ErrorCode.InvalidResponse]: 'We received an unexpected response. Please try again.',
-  [ErrorCode.Aborted]: 'The request was cancelled.',
-};
-
+/** Used for framework errors that arrive without a code. */
 const STATUS_CODES: Record<number, string> = {
   400: ErrorCode.InvalidRequest,
   401: ErrorCode.Unauthorized,
   403: ErrorCode.Forbidden,
   404: ErrorCode.NotFound,
   409: ErrorCode.Conflict,
+  413: ErrorCode.PayloadTooLarge,
   422: ErrorCode.ValidationError,
   429: ErrorCode.TooManyRequests,
 };
@@ -67,7 +74,6 @@ const STATUS_CODES: Record<number, string> = {
 interface ApiErrorInit {
   kind: ApiErrorKind;
   code: string;
-  message: string;
   status?: number | null;
   details?: Record<string, unknown>;
   fieldErrors?: Record<string, string>;
@@ -83,9 +89,14 @@ export class ApiError extends Error {
   readonly fieldErrors: Record<string, string>;
   readonly retryAfterSeconds: number | null;
   readonly requestId: string | undefined;
+  /**
+   * What support can search for (guide §6 "Error code: …"): the server's
+   * requestId, or a short client reference when the server was never reached.
+   */
+  readonly reference: string;
 
   constructor(init: ApiErrorInit) {
-    super(init.message);
+    super(messageForCode(init.code, init.status ?? null));
     this.name = 'ApiError';
     this.kind = init.kind;
     this.code = init.code;
@@ -94,6 +105,7 @@ export class ApiError extends Error {
     this.fieldErrors = init.fieldErrors ?? {};
     this.retryAfterSeconds = init.retryAfterSeconds ?? null;
     this.requestId = init.requestId;
+    this.reference = init.requestId ?? clientReference(init.kind);
   }
 
   get isNetworkError(): boolean {
@@ -105,33 +117,23 @@ export class ApiError extends Error {
   }
 
   static network(): ApiError {
-    return new ApiError({ kind: 'network', code: ErrorCode.Network, message: CODE_MESSAGES[ErrorCode.Network] });
+    return new ApiError({ kind: 'network', code: ErrorCode.Network });
   }
 
   static timeout(): ApiError {
-    return new ApiError({ kind: 'timeout', code: ErrorCode.Timeout, message: CODE_MESSAGES[ErrorCode.Timeout] });
+    return new ApiError({ kind: 'timeout', code: ErrorCode.Timeout });
   }
 
   static aborted(): ApiError {
-    return new ApiError({ kind: 'aborted', code: ErrorCode.Aborted, message: CODE_MESSAGES[ErrorCode.Aborted] });
+    return new ApiError({ kind: 'aborted', code: ErrorCode.Aborted });
   }
 
   static sessionExpired(): ApiError {
-    return new ApiError({
-      kind: 'session',
-      code: ErrorCode.SessionExpired,
-      status: 401,
-      message: CODE_MESSAGES[ErrorCode.SessionExpired],
-    });
+    return new ApiError({ kind: 'session', code: ErrorCode.SessionExpired, status: 401 });
   }
 
   static invalidResponse(status: number | null): ApiError {
-    return new ApiError({
-      kind: 'invalid_response',
-      code: ErrorCode.InvalidResponse,
-      status,
-      message: CODE_MESSAGES[ErrorCode.InvalidResponse],
-    });
+    return new ApiError({ kind: 'invalid_response', code: ErrorCode.InvalidResponse, status });
   }
 
   /** Builds an error from a non-2xx response and its (possibly non-JSON) body. */
@@ -144,14 +146,12 @@ export class ApiError extends Error {
           ? ErrorCode.InternalError
           : (STATUS_CODES[status] ?? ErrorCode.InvalidRequest);
     const details = isRecord(envelope.details) ? envelope.details : undefined;
-    const serverMessage = typeof envelope.message === 'string' ? envelope.message : undefined;
 
     return new ApiError({
       kind: 'http',
       status,
       code,
       details,
-      message: friendlyMessage(code, status, serverMessage),
       fieldErrors: parseFieldErrors(details),
       retryAfterSeconds: parseRetryAfter(details, retryAfterHeader),
       requestId: typeof envelope.requestId === 'string' ? envelope.requestId : undefined,
@@ -166,13 +166,25 @@ export function isApiError(value: unknown): value is ApiError {
 /** Converts anything thrown into a displayable message. */
 export function errorMessage(err: unknown): string {
   if (isApiError(err)) return err.message;
-  return CODE_MESSAGES[ErrorCode.InternalError];
+  return t('errors.INTERNAL_ERROR');
 }
 
-function friendlyMessage(code: string, status: number, serverMessage: string | undefined): string {
-  if (serverMessage && CLIENT_SAFE_MESSAGE_CODES.has(code)) return serverMessage;
-  if (status >= 500) return CODE_MESSAGES[ErrorCode.InternalError];
-  return CODE_MESSAGES[code] ?? CODE_MESSAGES[STATUS_CODES[status] ?? ErrorCode.InvalidRequest];
+function messageForCode(code: string, status: number | null): string {
+  const known = tOptional(`errors.${code}`);
+  if (known) return known;
+  if (status !== null && status >= 500) return t('errors.INTERNAL_ERROR');
+  const fallback = status !== null ? STATUS_CODES[status] : undefined;
+  return tOptional(`errors.${fallback ?? ErrorCode.InvalidRequest}`) ?? t('errors.INVALID_REQUEST');
+}
+
+/** `NET-7F3A`: lets support tell apart reports of failures that never reached the server. */
+function clientReference(kind: ApiErrorKind): string {
+  const prefix = kind === 'timeout' ? 'TMO' : kind === 'http' || kind === 'invalid_response' ? 'API' : 'NET';
+  const suffix = Math.floor(Math.random() * 0x10000)
+    .toString(16)
+    .toUpperCase()
+    .padStart(4, '0');
+  return `${prefix}-${suffix}`;
 }
 
 /**

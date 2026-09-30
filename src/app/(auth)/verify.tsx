@@ -15,7 +15,7 @@ import { env } from '@/config/env';
 import { setResendCooldown, startOtpFlow, useOtpFlow, type OtpFlow } from '@/features/auth/otpFlow';
 import { useCountdown } from '@/hooks/useCountdown';
 import { formatDuration, maskIdentifier, validateOtp } from '@/lib/identifier';
-import { spacing } from '@/theme';
+import { fonts, spacing } from '@/theme';
 
 /** Used when the backend throttles without saying how long to wait. */
 const DEFAULT_LOCK_SECONDS = 60;
@@ -27,7 +27,7 @@ export default function VerifyScreen() {
   return <VerifyForm flow={flow} />;
 }
 
-type Feedback = { tone: 'error' | 'info' | 'success'; message: string; retry?: boolean } | null;
+type Feedback = { tone: 'error' | 'info'; message: string; retry?: boolean } | null;
 
 function VerifyForm({ flow }: { flow: OtpFlow }) {
   const { signIn } = useAuth();
@@ -66,7 +66,7 @@ function VerifyForm({ flow }: { flow: OtpFlow }) {
     setCodeError(null);
     setFailedAttempts(0);
     setLastSubmitted(null);
-    setFeedback({ tone: 'success', message: 'We sent you a new code.' });
+    setFeedback({ tone: 'info', message: 'We sent you a new code.' });
     inputRef.current?.focus();
   }, [sendCount]);
 
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   stack: { gap: spacing.lg },
   back: { alignSelf: 'flex-start', marginLeft: -spacing.sm },
   copy: { gap: spacing.xs },
-  strong: { fontWeight: '600' },
+  strong: { fontFamily: fonts.semibold },
   codeBlock: { gap: spacing.sm },
   status: { minHeight: 18, alignItems: 'center' },
   resend: { alignItems: 'center', gap: spacing.xxs },

@@ -1,7 +1,7 @@
 import { createContext, use, useCallback, useEffect, useMemo, useSyncExternalStore, type PropsWithChildren } from 'react';
 
 import * as accountApi from '@/api/account';
-import type { AuthTokens, User } from '@/api/types';
+import type { AuthTokens, Me } from '@/api/types';
 import { resetOtpFlow } from '@/features/auth/otpFlow';
 
 import { session, type SessionSnapshot } from './session';
@@ -9,11 +9,8 @@ import { session, type SessionSnapshot } from './session';
 interface AuthContextValue extends SessionSnapshot {
   signIn: (tokens: AuthTokens) => Promise<void>;
   signOut: () => Promise<void>;
-  signOutEverywhere: () => Promise<void>;
-  reloadUser: () => Promise<User>;
+  reloadUser: () => Promise<Me>;
   retryRestore: () => Promise<void>;
-  /** Drops a stored session that could not be verified, without contacting the server. */
-  discardSession: () => Promise<void>;
   clearNotice: () => void;
 }
 
@@ -25,6 +22,7 @@ export function useAuth(): AuthContextValue {
   return value;
 }
 
+/** React view of the SessionManager. All session logic lives in session.ts. */
 export function AuthProvider({ children }: PropsWithChildren) {
   const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
 
@@ -34,33 +32,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const signIn = useCallback(async (tokens: AuthTokens) => {
     await session.signIn(tokens);
+    // The phone number or email typed during sign-in is no longer needed.
     resetOtpFlow();
   }, []);
-
-  const signOut = useCallback(async () => {
-    await session.signOut();
-    resetOtpFlow();
-  }, []);
-
-  const signOutEverywhere = useCallback(async () => {
-    await accountApi.logoutAllDevices();
-    await session.end(null);
-    resetOtpFlow();
-  }, []);
-
-  const reloadUser = useCallback(async () => {
-    const user = await accountApi.getCurrentUser();
-    session.updateUser(user);
-    return user;
-  }, []);
-
+  const signOut = useCallback(() => session.signOut(), []);
   const retryRestore = useCallback(() => session.restore(), []);
-  const discardSession = useCallback(() => session.end(null), []);
   const clearNotice = useCallback(() => session.clearNotice(), []);
+  const reloadUser = useCallback(async () => {
+    const me = await accountApi.getMe();
+    session.updateUser(me);
+    return me;
+  }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ ...snapshot, signIn, signOut, signOutEverywhere, reloadUser, retryRestore, discardSession, clearNotice }),
-    [snapshot, signIn, signOut, signOutEverywhere, reloadUser, retryRestore, discardSession, clearNotice],
+    () => ({ ...snapshot, signIn, signOut, reloadUser, retryRestore, clearNotice }),
+    [snapshot, signIn, signOut, reloadUser, retryRestore, clearNotice],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

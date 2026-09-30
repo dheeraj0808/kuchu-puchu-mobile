@@ -1,25 +1,33 @@
 import * as authApi from '@/api/auth';
 import { ApiError, ErrorCode, isApiError } from '@/api/errors';
-import type { AuthTokens, User } from '@/api/types';
+import type { AuthTokens, Me, User } from '@/api/types';
+import { t } from '@/i18n';
+import { queryClient, queryKeys } from '@/lib/queryClient';
+import { resetAllStores } from '@/lib/stores';
 
 import { tokenStorage } from './tokenStorage';
 
 /**
- * Owns the authenticated session outside React.
+ * Owns the authenticated session outside React (guide §10.1).
  *
- * - Access token: memory only.
- * - Refresh token: memory + secure storage (see tokenStorage).
+ * - States: unknown → signedOut | signedIn.
+ * - Access token: memory only. Refresh token: memory + secure storage.
  * - Refreshes are single-flight. This is required, not an optimisation: the
  *   backend rotates refresh tokens and treats a replayed (rotated-out) token
  *   as theft, revoking the session.
+ * - Ending the session clears secure storage, the React Query cache and every
+ *   Zustand store.
  */
 
-export type SessionStatus = 'loading' | 'authenticated' | 'unauthenticated' | 'error';
+export type SessionStatus = 'unknown' | 'signedOut' | 'signedIn';
 
 export interface SessionSnapshot {
   status: SessionStatus;
-  user: User | null;
-  /** Set when a stored session could not be verified (e.g. offline at launch). */
+  user: Me | null;
+  /**
+   * Set while status is 'unknown' when a stored session could not be checked
+   * (offline or server down at launch). The session is kept; retry with restore().
+   */
   restoreError: ApiError | null;
   /** User-facing reason the last session ended (expired, restricted…). */
   notice: string | null;
@@ -28,12 +36,18 @@ export interface SessionSnapshot {
 /** Refresh slightly before the access token actually expires. */
 const EXPIRY_SKEW_MS = 30_000;
 
-const SESSION_ENDED_NOTICE = 'Your session has ended. Please sign in again.';
-
 type Listener = () => void;
+type SessionApi = Pick<typeof authApi, 'refreshSession' | 'logout' | 'fetchMe'>;
+
+/** Drops every cached user query. /app/config is not user data and is kept. */
+function clearClientState(): void {
+  queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== queryKeys.appConfig[0] });
+  queryClient.getMutationCache().clear();
+  resetAllStores();
+}
 
 export class SessionManager {
-  private snapshot: SessionSnapshot = { status: 'loading', user: null, restoreError: null, notice: null };
+  private snapshot: SessionSnapshot = { status: 'unknown', user: null, restoreError: null, notice: null };
   private readonly listeners = new Set<Listener>();
 
   private accessToken: string | null = null;
@@ -46,9 +60,10 @@ export class SessionManager {
   private generation = 0;
 
   constructor(
-    private readonly api: Pick<typeof authApi, 'refreshSession' | 'logout'> = authApi,
+    private readonly api: SessionApi = authApi,
     private readonly storage: typeof tokenStorage = tokenStorage,
     private readonly now: () => number = Date.now,
+    private readonly clearState: () => void = clearClientState,
   ) {}
 
   getSnapshot = (): SessionSnapshot => this.snapshot;
@@ -60,11 +75,9 @@ export class SessionManager {
     };
   };
 
-  /** Resolves the stored session at launch. Safe to call repeatedly. */
+  /** Launch: stored refresh token → refresh → GET /auth/me. Safe to call repeatedly. */
   restore(): Promise<void> {
-    if (this.snapshot.status === 'authenticated' || this.snapshot.status === 'unauthenticated') {
-      return Promise.resolve();
-    }
+    if (this.snapshot.status !== 'unknown') return Promise.resolve();
     this.restorePromise ??= this.runRestore().finally(() => {
       this.restorePromise = null;
     });
@@ -75,13 +88,18 @@ export class SessionManager {
   async signIn(tokens: AuthTokens): Promise<void> {
     this.generation += 1;
     await this.applyTokens(tokens);
+    this.setSnapshot({ status: 'signedIn', user: meFromUser(tokens.user), restoreError: null, notice: null });
+    // /auth/me carries the profile (and later nextStep); the tokens only carry the account.
+    try {
+      this.updateUser(await this.api.fetchMe(tokens.accessToken));
+    } catch {
+      // Kept signed in; screens reload /auth/me when they need it.
+    }
   }
 
   /** Returns a usable access token, refreshing if it is missing or about to expire. */
   async getAccessToken(): Promise<string | null> {
-    if (this.accessToken && this.now() < this.accessTokenExpiresAt - EXPIRY_SKEW_MS) {
-      return this.accessToken;
-    }
+    if (this.hasFreshAccessToken()) return this.accessToken;
     return this.refreshAccessToken();
   }
 
@@ -90,9 +108,7 @@ export class SessionManager {
    * refreshed past the failed token, reuse the new one instead of rotating again.
    */
   async recoverFromUnauthorized(failedToken: string): Promise<string | null> {
-    if (this.accessToken && this.accessToken !== failedToken && this.now() < this.accessTokenExpiresAt - EXPIRY_SKEW_MS) {
-      return this.accessToken;
-    }
+    if (this.accessToken !== failedToken && this.hasFreshAccessToken()) return this.accessToken;
     return this.refreshAccessToken();
   }
 
@@ -109,8 +125,8 @@ export class SessionManager {
     return this.refreshPromise;
   }
 
-  updateUser(user: User): void {
-    if (this.snapshot.status !== 'authenticated') return;
+  updateUser(user: Me): void {
+    if (this.snapshot.status !== 'signedIn') return;
     this.setSnapshot({ user });
   }
 
@@ -133,34 +149,42 @@ export class SessionManager {
     await this.end(null);
   }
 
-  /** Clears the local session without contacting the server. */
-  async end(notice: string | null = SESSION_ENDED_NOTICE): Promise<void> {
+  /** Clears the local session and all cached user data without contacting the server. */
+  async end(notice: string | null = t('session.ended')): Promise<void> {
     this.generation += 1;
     this.accessToken = null;
     this.accessTokenExpiresAt = 0;
     this.refreshToken = null;
     await this.storage.clearRefreshToken();
-    this.setSnapshot({ status: 'unauthenticated', user: null, restoreError: null, notice });
+    this.clearState();
+    this.setSnapshot({ status: 'signedOut', user: null, restoreError: null, notice });
   }
 
   private async runRestore(): Promise<void> {
+    const generation = this.generation;
     try {
-      await this.refreshAccessToken();
+      const token = await this.getAccessToken();
+      if (!token) return; // Nothing stored, or refresh refused: already signed out.
+      const me = await this.api.fetchMe(token);
+      if (generation !== this.generation) return;
+      this.setSnapshot({ status: 'signedIn', user: me, restoreError: null, notice: null });
     } catch (err) {
-      this.setSnapshot({
-        status: 'error',
-        restoreError: isApiError(err) ? err : ApiError.network(),
-      });
+      if (generation !== this.generation) return;
+      if (isSessionRejection(err)) {
+        await this.end(sessionEndedNotice(err));
+        return;
+      }
+      this.setSnapshot({ status: 'unknown', restoreError: isApiError(err) ? err : ApiError.network() });
     }
   }
 
   private async performRefresh(): Promise<string | null> {
     const generation = this.generation;
-    const wasAuthenticated = this.snapshot.status === 'authenticated';
+    const hadSession = this.snapshot.status === 'signedIn';
     const stored = this.refreshToken ?? (await this.storage.getRefreshToken());
 
     if (!stored) {
-      if (generation === this.generation) await this.end(wasAuthenticated ? SESSION_ENDED_NOTICE : null);
+      if (generation === this.generation) await this.end(hadSession ? t('session.ended') : null);
       return null;
     }
 
@@ -185,12 +209,15 @@ export class SessionManager {
     return tokens.accessToken;
   }
 
+  private hasFreshAccessToken(): boolean {
+    return this.accessToken !== null && this.now() < this.accessTokenExpiresAt - EXPIRY_SKEW_MS;
+  }
+
   private async applyTokens(tokens: AuthTokens): Promise<void> {
     this.accessToken = tokens.accessToken;
     this.accessTokenExpiresAt = this.now() + tokens.accessTokenExpiresIn * 1000;
     this.refreshToken = tokens.refreshToken;
     await this.storage.setRefreshToken(tokens.refreshToken);
-    this.setSnapshot({ status: 'authenticated', user: tokens.user, restoreError: null, notice: null });
   }
 
   private setSnapshot(partial: Partial<SessionSnapshot>): void {
@@ -199,13 +226,17 @@ export class SessionManager {
   }
 }
 
-/** The server definitively refused the refresh token (vs. being unreachable). */
+function meFromUser(user: User): Me {
+  return { ...user, profile: null };
+}
+
+/** The server definitively refused the session (vs. being unreachable). */
 function isSessionRejection(err: unknown): err is ApiError {
   return isApiError(err) && err.kind === 'http' && (err.status === 400 || err.status === 401 || err.status === 403);
 }
 
 function sessionEndedNotice(err: ApiError): string {
-  return err.code === ErrorCode.AccountRestricted ? err.message : SESSION_ENDED_NOTICE;
+  return err.code === ErrorCode.AccountRestricted ? err.message : t('session.ended');
 }
 
 export const session = new SessionManager();

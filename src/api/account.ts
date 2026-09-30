@@ -1,12 +1,8 @@
 import { authedRequest } from './client';
-import type { MessageResponse, User } from './types';
+import type { Me } from './types';
 
 /** Authenticated account endpoints (backend/src/auth/auth.controller.ts). */
 
-export function getCurrentUser(): Promise<User> {
-  return authedRequest<User>('/auth/me');
-}
-
-export function logoutAllDevices(): Promise<MessageResponse> {
-  return authedRequest<MessageResponse>('/auth/logout-all', { method: 'POST' });
+export function getMe(): Promise<Me> {
+  return authedRequest<Me>('/auth/me');
 }

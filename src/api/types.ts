@@ -1,6 +1,6 @@
 /**
  * Types mirroring the backend DTOs (backend/src/auth/dto, backend/src/users/dto).
- * Every successful response is wrapped as `{ success: true, data, timestamp }`.
+ * Success: `{ success: true, data, meta? }`. Error: `{ success: false, code, message, details?, requestId? }`.
  */
 
 export type IdentifierType = 'email' | 'phone';
@@ -18,6 +18,19 @@ export interface User {
   status: UserStatus;
   role: UserRole;
   createdAt: string;
+}
+
+/** backend/src/common/onboarding/onboarding-status.service.ts */
+export type OnboardingStep = 'selfie' | 'photos' | 'profile' | 'preferences' | 'done';
+
+/**
+ * GET /auth/me (MeResponseDto). `profile` is typed loosely until the profile
+ * screens (M09) consume it. `nextStep` is not returned yet (M06); until it
+ * is, the gate treats a missing value as 'done'.
+ */
+export interface Me extends User {
+  profile: Record<string, unknown> | null;
+  nextStep?: OnboardingStep;
 }
 
 /** POST /auth/request-otp body (RequestOtpDto) */
@@ -55,20 +68,4 @@ export interface AuthTokens {
 /** MessageResponse */
 export interface MessageResponse {
   message: string;
-}
-
-export interface SuccessEnvelope<T> {
-  success: true;
-  data: T;
-  timestamp: string;
-}
-
-export interface ErrorEnvelope {
-  success: false;
-  message: string;
-  code: string;
-  timestamp: string;
-  path: string;
-  requestId?: string;
-  details?: Record<string, unknown>;
 }

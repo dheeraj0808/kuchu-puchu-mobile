@@ -1,10 +1,11 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { radius, spacing, useTheme } from '@/theme';
+import { radius, spacing, typography, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
 
-type Tone = 'error' | 'info' | 'success';
+/** Guide §5.3: info (soft pink) and error. */
+type Tone = 'error' | 'info';
 
 interface BannerProps {
   tone?: Tone;
@@ -15,26 +16,20 @@ interface BannerProps {
 
 export function Banner({ tone = 'error', message, actionLabel, onAction }: BannerProps) {
   const { colors } = useTheme();
-  const palette = {
-    error: { bg: colors.dangerSoft, fg: colors.danger },
-    info: { bg: colors.infoSoft, fg: colors.info },
-    success: { bg: colors.successSoft, fg: colors.success },
-  }[tone];
+  const isError = tone === 'error';
+  const accent = isError ? colors.danger : colors.primary;
 
   return (
     <View
-      role={tone === 'error' ? 'alert' : 'status'}
+      role={isError ? 'alert' : 'status'}
       accessibilityLiveRegion="polite"
-      style={[styles.container, { backgroundColor: palette.bg }]}>
-      <View style={[styles.dot, { backgroundColor: palette.fg }]} />
-      <AppText variant="caption" style={[styles.message, { color: palette.fg }]}>
+      style={[styles.container, { backgroundColor: isError ? colors.dangerSoft : colors.primarySoft, borderLeftColor: accent }]}>
+      <AppText variant="label" style={styles.message}>
         {message}
       </AppText>
       {actionLabel && onAction ? (
-        <Pressable accessibilityRole="button" onPress={onAction} hitSlop={8} style={styles.action}>
-          <AppText variant="label" style={{ color: palette.fg, textDecorationLine: 'underline' }}>
-            {actionLabel}
-          </AppText>
+        <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} onPress={onAction} hitSlop={12}>
+          <AppText style={[typography.label, { color: accent, textDecorationLine: 'underline' }]}>{actionLabel}</AppText>
         </Pressable>
       ) : null}
     </View>
@@ -45,12 +40,12 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.md,
+    gap: spacing.sm,
+    borderRadius: radius.sm,
+    borderLeftWidth: 3,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     alignSelf: 'stretch',
   },
-  dot: { width: 6, height: 6, borderRadius: 3, marginRight: spacing.sm },
-  message: { flex: 1, fontWeight: '500' },
-  action: { marginLeft: spacing.sm },
+  message: { flex: 1 },
 });

@@ -1,6 +1,5 @@
-import { useSyncExternalStore } from 'react';
-
 import type { IdentifierType, RequestOtpResponse } from '@/api/types';
+import { createResettableStore } from '@/lib/stores';
 
 /**
  * In-memory state for an in-progress OTP sign-in. Kept out of route params so
@@ -18,39 +17,26 @@ export interface OtpFlow {
   sendCount: number;
 }
 
-let current: OtpFlow | null = null;
-const listeners = new Set<() => void>();
+const useOtpFlowStore = createResettableStore<{ flow: OtpFlow | null }>(() => ({ flow: null }));
 
-function emit(): void {
-  listeners.forEach((l) => l());
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-function getSnapshot(): OtpFlow | null {
-  return current;
-}
+const current = (): OtpFlow | null => useOtpFlowStore.getState().flow;
+const set = (flow: OtpFlow | null): void => useOtpFlowStore.setState({ flow });
 
 export function useOtpFlow(): OtpFlow | null {
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return useOtpFlowStore((state) => state.flow);
 }
 
 /** Records a successful code request. */
 export function startOtpFlow(identifierType: IdentifierType, identifier: string, response: RequestOtpResponse): void {
   const now = Date.now();
-  current = {
+  const previous = current();
+  set({
     identifierType,
     identifier,
     expiresAt: now + response.expiresInSeconds * 1000,
     resendAvailableAt: now + response.resendAfterSeconds * 1000,
-    sendCount: (current?.identifier === identifier ? current.sendCount : 0) + 1,
-  };
-  emit();
+    sendCount: (previous?.identifier === identifier ? previous.sendCount : 0) + 1,
+  });
 }
 
 /**
@@ -58,26 +44,23 @@ export function startOtpFlow(identifierType: IdentifierType, identifier: string,
  * That earlier code is still usable, so continue to the code screen.
  */
 export function resumeOtpFlowAfterCooldown(identifierType: IdentifierType, identifier: string, retryAfterSeconds: number): void {
-  const now = Date.now();
-  const sameIdentifier = current?.identifier === identifier && current.identifierType === identifierType;
-  current = {
+  const previous = current();
+  const same = previous !== null && previous.identifier === identifier && previous.identifierType === identifierType;
+  set({
     identifierType,
     identifier,
-    expiresAt: sameIdentifier ? current!.expiresAt : null,
-    resendAvailableAt: now + retryAfterSeconds * 1000,
-    sendCount: sameIdentifier ? current!.sendCount : 1,
-  };
-  emit();
+    expiresAt: same ? previous.expiresAt : null,
+    resendAvailableAt: Date.now() + retryAfterSeconds * 1000,
+    sendCount: same ? previous.sendCount : 1,
+  });
 }
 
 export function setResendCooldown(retryAfterSeconds: number): void {
-  if (!current) return;
-  current = { ...current, resendAvailableAt: Date.now() + retryAfterSeconds * 1000 };
-  emit();
+  const previous = current();
+  if (!previous) return;
+  set({ ...previous, resendAvailableAt: Date.now() + retryAfterSeconds * 1000 });
 }
 
 export function resetOtpFlow(): void {
-  if (current === null) return;
-  current = null;
-  emit();
+  if (current() !== null) set(null);
 }
