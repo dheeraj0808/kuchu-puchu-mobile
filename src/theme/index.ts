@@ -19,7 +19,8 @@ const light = {
   successSoft: '#E3F4EA',
   info: '#3D5A80',
   infoSoft: '#E8EEF6',
-  shadow: '#3B1A28',
+  shadowRaised: '0px 1px 4px rgba(59, 26, 40, 0.10)',
+  shadowCard: '0px 8px 24px rgba(59, 26, 40, 0.08)',
 };
 
 export type ColorPalette = typeof light;
@@ -43,7 +44,8 @@ const dark: ColorPalette = {
   successSoft: '#15301F',
   info: '#9DB8E0',
   infoSoft: '#1B2433',
-  shadow: '#000000',
+  shadowRaised: '0px 1px 4px rgba(0, 0, 0, 0.40)',
+  shadowCard: '0px 8px 24px rgba(0, 0, 0, 0.45)',
 };
 
 export const spacing = { xxs: 4, xs: 8, sm: 12, md: 16, lg: 24, xl: 32, xxl: 48 } as const;

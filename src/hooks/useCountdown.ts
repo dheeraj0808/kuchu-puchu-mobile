@@ -9,14 +9,21 @@ export function useCountdown(targetMs: number | null): number | null {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    setNow(Date.now());
-    if (targetMs === null || targetMs <= Date.now()) return;
-    const id = setInterval(() => {
+    if (targetMs === null) return;
+    const tick = (): number => {
       const current = Date.now();
       setNow(current);
-      if (current >= targetMs) clearInterval(id);
+      return current;
+    };
+    // Resync immediately when the target changes, then every second until it passes.
+    const initial = setTimeout(tick, 0);
+    const id = setInterval(() => {
+      if (tick() >= targetMs) clearInterval(id);
     }, 1000);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(id);
+    };
   }, [targetMs]);
 
   if (targetMs === null) return null;

@@ -47,7 +47,7 @@ export function Screen({ variant = 'form', edges = ['top', 'bottom'], refreshCon
               isForm &&
                 isWide && [
                   styles.card,
-                  { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow },
+                  { backgroundColor: colors.surface, borderColor: colors.border, boxShadow: colors.shadowCard },
                 ],
             ]}>
             {children}
@@ -68,9 +68,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.lg,
     padding: spacing.xl,
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
   },
 });

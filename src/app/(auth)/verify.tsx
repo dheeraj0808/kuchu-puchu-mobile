@@ -140,12 +140,14 @@ function VerifyForm({ flow }: { flow: OtpFlow }) {
     [flow, length, signIn, failedAttempts],
   );
 
-  // Auto-submit once all digits are in — but never resubmit the same code.
-  useEffect(() => {
-    if (code.length === length && code !== lastSubmitted && !blocked && !locked) {
-      void verify(code);
+  const changeCode = (next: string) => {
+    setCode(next);
+    if (codeError && !blocked) setCodeError(null);
+    // Auto-submit once all digits are in — but never resubmit the same code.
+    if (next.length === length && next !== lastSubmitted && !blocked && !locked) {
+      void verify(next);
     }
-  }, [code, length, lastSubmitted, blocked, locked, verify]);
+  };
 
   const resend = async () => {
     if (resending || resendIn > 0) return;
@@ -204,10 +206,7 @@ function VerifyForm({ flow }: { flow: OtpFlow }) {
           <OtpInput
             ref={inputRef}
             value={code}
-            onChange={(next) => {
-              setCode(next);
-              if (codeError && !blocked) setCodeError(null);
-            }}
+            onChange={changeCode}
             length={length}
             disabled={verifying || blocked}
             invalid={!!codeError}

@@ -41,7 +41,7 @@ export function SegmentedControl<T extends string>({
             onPress={() => !selected && onChange(option.value)}
             style={[
               styles.segment,
-              selected && [styles.selected, { backgroundColor: colors.surface, shadowColor: colors.shadow }],
+              selected && { backgroundColor: colors.surface, boxShadow: colors.shadowRaised },
             ]}>
             <AppText variant="label" tone={selected ? 'default' : 'muted'}>
               {option.label}
@@ -66,11 +66,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.sm,
-  },
-  selected: {
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
   },
 });

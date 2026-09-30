@@ -19,6 +19,7 @@ export const ErrorCode = {
   AccountRestricted: 'ACCOUNT_RESTRICTED',
   InternalError: 'INTERNAL_ERROR',
   // Client-side only
+  Conflict: 'CONFLICT',
   Network: 'NETWORK_ERROR',
   Timeout: 'TIMEOUT',
   Aborted: 'ABORTED',
@@ -45,6 +46,7 @@ const CODE_MESSAGES: Record<string, string> = {
   [ErrorCode.NotFound]: 'We couldn’t find what you were looking for.',
   [ErrorCode.TooManyRequests]: 'Too many attempts. Please wait a moment and try again.',
   [ErrorCode.OtpInvalid]: 'That code is incorrect or has expired.',
+  [ErrorCode.Conflict]: 'That conflicts with information we already have.',
   [ErrorCode.InternalError]: 'Something went wrong on our side. Please try again shortly.',
   [ErrorCode.Network]: 'Can’t reach Kuchu Puchu. Check your connection and try again.',
   [ErrorCode.Timeout]: 'The server is taking too long to respond. Please try again.',
@@ -57,12 +59,9 @@ const STATUS_CODES: Record<number, string> = {
   401: ErrorCode.Unauthorized,
   403: ErrorCode.Forbidden,
   404: ErrorCode.NotFound,
+  409: ErrorCode.Conflict,
+  422: ErrorCode.ValidationError,
   429: ErrorCode.TooManyRequests,
-};
-
-const STATUS_MESSAGES: Record<number, string> = {
-  409: 'That conflicts with information we already have.',
-  422: 'Please check the highlighted details and try again.',
 };
 
 interface ApiErrorInit {
@@ -173,7 +172,7 @@ export function errorMessage(err: unknown): string {
 function friendlyMessage(code: string, status: number, serverMessage: string | undefined): string {
   if (serverMessage && CLIENT_SAFE_MESSAGE_CODES.has(code)) return serverMessage;
   if (status >= 500) return CODE_MESSAGES[ErrorCode.InternalError];
-  return CODE_MESSAGES[code] ?? STATUS_MESSAGES[status] ?? CODE_MESSAGES[ErrorCode.InvalidRequest];
+  return CODE_MESSAGES[code] ?? CODE_MESSAGES[STATUS_CODES[status] ?? ErrorCode.InvalidRequest];
 }
 
 /**
