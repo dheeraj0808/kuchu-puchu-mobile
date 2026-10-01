@@ -1,14 +1,22 @@
+import { withReauth } from '@/auth/reauth';
 import { session } from '@/auth/session';
 
 import { ApiError } from './errors';
 import { httpRequest, type HttpOptions } from './http';
 
+type AuthedOptions = Omit<HttpOptions, 'accessToken'>;
+
 /**
  * Authenticated request: attaches the access token, refreshes it when
  * expired, and retries exactly once after a 401. If the session cannot be
  * recovered it is ended, which routes the user back to sign-in.
+ * A 403 REAUTH_REQUIRED opens the OTP step-up sheet and repeats the request once.
  */
-export async function authedRequest<T>(path: string, options: Omit<HttpOptions, 'accessToken'> = {}): Promise<T> {
+export function authedRequest<T>(path: string, options: AuthedOptions = {}): Promise<T> {
+  return withReauth(() => authedOnce<T>(path, options));
+}
+
+async function authedOnce<T>(path: string, options: AuthedOptions): Promise<T> {
   const token = await session.getAccessToken();
   if (!token) throw ApiError.sessionExpired();
 

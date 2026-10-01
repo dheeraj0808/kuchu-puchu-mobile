@@ -9,7 +9,15 @@ import { Icon, type IconName } from './Icon';
  * Guide §5.3: primary (pink), secondary (black outline), ghost, destructive.
  * `inverse` / `inverseOutline` are the white buttons on the pink Welcome screen.
  */
-type Variant = 'primary' | 'secondary' | 'ghost' | 'destructive' | 'inverse' | 'inverseOutline';
+type Variant =
+  | 'primary'
+  | 'secondary'
+  | 'ghost'
+  | 'plain'
+  | 'destructive'
+  | 'destructiveOutline'
+  | 'inverse'
+  | 'inverseOutline';
 
 interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
   label: string;
@@ -33,7 +41,11 @@ const PALETTES: Record<Variant, Palette> = {
   primary: { bg: 'primary', fg: 'onPrimary', border: null, icon: 'onPrimary' },
   secondary: { bg: 'background', fg: 'text', border: 'outline', icon: 'text' },
   ghost: { bg: null, fg: 'primary', border: null, icon: 'primary' },
+  /** Ink text without a box (deck 48 "Keep my account"). */
+  plain: { bg: null, fg: 'text', border: null, icon: 'text' },
   destructive: { bg: 'danger', fg: 'onPrimary', border: null, icon: 'onPrimary' },
+  /** Red outline (deck 45 "Sign out of all devices"). */
+  destructiveOutline: { bg: 'background', fg: 'danger', border: 'danger', icon: 'danger' },
   // Deck screen 01: pink text, ink icon on white; white text, ink icon on the outline button.
   inverse: { bg: 'onPrimary', fg: 'primary', border: null, icon: 'text' },
   inverseOutline: { bg: null, fg: 'onPrimary', border: 'onPrimaryBorder', icon: 'text' },
@@ -66,7 +78,7 @@ export function Button({
       onPress={inactive ? undefined : onPress}
       style={({ pressed }) => [
         styles.base,
-        variant === 'ghost' && styles.ghost,
+        (variant === 'ghost' || variant === 'plain') && styles.ghost,
         fullWidth && styles.fullWidth,
         {
           backgroundColor: palette.bg ? colors[palette.bg] : 'transparent',

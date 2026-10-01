@@ -24,6 +24,13 @@ export type LaunchState =
   | { kind: 'updateRequired'; config: AppConfig }
   | { kind: 'maintenance'; config: AppConfig | null };
 
+/**
+ * The launch check blocks the first screen, so it fails fast: one 6 s try,
+ * then the Offline screen (which re-checks on Try again, when the network
+ * returns and every minute) instead of a long blank wait.
+ */
+const LAUNCH_TIMEOUT_MS = 6_000;
+
 const NO_RESTRICTIONS: AppConfig = {
   minVersion: null,
   latestVersion: null,
@@ -38,7 +45,7 @@ const NO_RESTRICTIONS: AppConfig = {
 export async function fetchLaunchState(appVersion: string = env.appVersion): Promise<LaunchState> {
   let raw: unknown;
   try {
-    raw = await httpRequest<unknown>('/app/config');
+    raw = await httpRequest<unknown>('/app/config', { timeoutMs: LAUNCH_TIMEOUT_MS, retry: false });
   } catch (err) {
     if (isApiError(err) && err.kind === 'http') {
       // A 503 from the API (or the load balancer in front of it) is planned downtime.

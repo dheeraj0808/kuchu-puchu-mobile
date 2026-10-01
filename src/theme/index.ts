@@ -40,6 +40,9 @@ const light = {
   /** White and ink used on top of a pink surface (Welcome). */
   onPrimaryMuted: alpha(brand.white, 0.9),
   onPrimaryBorder: alpha(brand.white, 0.6),
+  /** Welcome illustration: rose skin tone and soft bubbles, derived from the brand pink. */
+  illustrationSkin: alpha(brand.pink, 0.55),
+  illustrationBubble: alpha(brand.white, 0.45),
   shadowRaised: `0px 1px 4px ${alpha(brand.black, 0.1)}`,
   shadowCard: `0px 8px 24px ${alpha(brand.black, 0.08)}`,
 };
@@ -64,6 +67,8 @@ const dark: ColorPalette = {
   dangerSoft: alpha(brand.red, 0.16),
   onPrimaryMuted: alpha(brand.white, 0.9),
   onPrimaryBorder: alpha(brand.white, 0.6),
+  illustrationSkin: alpha(brand.pink, 0.55),
+  illustrationBubble: alpha(brand.white, 0.45),
   shadowRaised: `0px 1px 4px ${alpha(brand.black, 0.4)}`,
   shadowCard: `0px 8px 24px ${alpha(brand.black, 0.45)}`,
 };
@@ -106,6 +111,8 @@ export const typography = {
   label: { fontFamily: fonts.semibold, fontSize: 14, lineHeight: 20 },
   button: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 22 },
   caption: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 18 },
+  /** Deck 03 keypad digits. */
+  keypad: { fontFamily: fonts.semibold, fontSize: 24, lineHeight: 30 },
 } as const;
 
 /** Content widths so tablet/desktop layouts don't stretch forms edge to edge. */

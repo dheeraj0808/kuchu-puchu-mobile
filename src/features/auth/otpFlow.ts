@@ -22,6 +22,11 @@ const useOtpFlowStore = createResettableStore<{ flow: OtpFlow | null }>(() => ({
 const current = (): OtpFlow | null => useOtpFlowStore.getState().flow;
 const set = (flow: OtpFlow | null): void => useOtpFlowStore.setState({ flow });
 
+/** Current flow outside React (tests, event handlers). */
+export function getOtpFlow(): OtpFlow | null {
+  return current();
+}
+
 export function useOtpFlow(): OtpFlow | null {
   return useOtpFlowStore((state) => state.flow);
 }

@@ -10,7 +10,7 @@ import { Wordmark } from '@/components/Wordmark';
 import { env } from '@/config/env';
 import { WelcomeIllustration } from '@/features/auth/WelcomeIllustration';
 import { t } from '@/i18n';
-import { layout, spacing, typography, useTheme } from '@/theme';
+import { fonts, layout, spacing, typography, useTheme } from '@/theme';
 
 /**
  * Screen 01 — Welcome. First screen with no session: brand, the 18+
@@ -97,5 +97,5 @@ const styles = StyleSheet.create({
   // Pushes the buttons to the bottom; collapses when large fonts need the space.
   actions: { flexGrow: 1, justifyContent: 'flex-end', gap: spacing.sm, paddingTop: spacing.xl },
   legal: { marginTop: spacing.xs, paddingHorizontal: spacing.xs },
-  link: { ...typography.caption, textDecorationLine: 'underline' },
+  link: { ...typography.caption, fontFamily: fonts.semibold },
 });

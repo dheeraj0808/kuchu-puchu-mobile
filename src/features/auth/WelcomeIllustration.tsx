@@ -7,9 +7,9 @@ import { radius, spacing, useTheme, type ColorPalette } from '@/theme';
 
 /**
  * Deck screen 01 hero: two overlapping avatar circles, a heart where they
- * meet and a "Live verified" pill. The people are simple brand-colour
- * silhouettes; swap `Avatar` for the designer's illustration asset when it
- * is exported (the deck art uses skin tones outside the brand palette).
+ * meet and a "Live verified" pill. The people are drawn from brand-colour
+ * shapes (a rose skin tone derived from the pink); swap `Avatar` for the
+ * designer's illustration asset when it is exported.
  */
 export function WelcomeIllustration() {
   const { colors } = useTheme();
@@ -45,9 +45,23 @@ function Avatar({ hair, top, longHair }: AvatarProps) {
   return (
     <View style={[styles.avatar, { borderColor: colors.onPrimary, backgroundColor: colors.onPrimary }]}>
       <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.primaryBorder }]} />
+      <View style={[styles.bubbleLarge, { backgroundColor: colors.illustrationBubble }]} />
+      <View style={[styles.bubbleSmall, { backgroundColor: colors.illustrationBubble }]} />
+      {longHair ? <View style={[styles.hairLong, { backgroundColor: colors[hair] }]} /> : null}
       <View style={[styles.shoulders, { backgroundColor: colors[top] }]} />
-      <View style={[longHair ? styles.hairLong : styles.hairShort, { backgroundColor: colors[hair] }]} />
-      <View style={[styles.face, { backgroundColor: colors.onPrimary }]} />
+      <Skin style={styles.neck} />
+      <Skin style={styles.face} />
+      <View style={[longHair ? styles.fringeLong : styles.hairShort, { backgroundColor: colors[hair] }]} />
+    </View>
+  );
+}
+
+/** The skin tone is a transparent pink, so it sits on white to stay solid over the hair. */
+function Skin({ style }: { style: object }) {
+  const { colors } = useTheme();
+  return (
+    <View style={[style, styles.skinBase, { backgroundColor: colors.onPrimary }]}>
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.illustrationSkin }]} />
     </View>
   );
 }
@@ -68,37 +82,75 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
   },
-  shoulders: {
+  bubbleLarge: {
     position: 'absolute',
-    bottom: -AVATAR * 0.22,
-    width: AVATAR * 0.78,
-    height: AVATAR * 0.5,
-    borderRadius: AVATAR * 0.4,
+    top: AVATAR * 0.08,
+    right: AVATAR * 0.08,
+    width: AVATAR * 0.22,
+    height: AVATAR * 0.22,
+    borderRadius: AVATAR * 0.11,
+  },
+  bubbleSmall: {
+    position: 'absolute',
+    bottom: AVATAR * 0.3,
+    left: AVATAR * 0.06,
+    width: AVATAR * 0.16,
+    height: AVATAR * 0.16,
+    borderRadius: AVATAR * 0.08,
   },
   hairLong: {
     position: 'absolute',
     top: AVATAR * 0.12,
-    width: AVATAR * 0.46,
-    height: AVATAR * 0.6,
-    borderTopLeftRadius: AVATAR * 0.23,
-    borderTopRightRadius: AVATAR * 0.23,
-    borderBottomLeftRadius: AVATAR * 0.06,
-    borderBottomRightRadius: AVATAR * 0.06,
+    width: AVATAR * 0.5,
+    height: AVATAR * 0.62,
+    borderTopLeftRadius: AVATAR * 0.25,
+    borderTopRightRadius: AVATAR * 0.25,
+    borderBottomLeftRadius: AVATAR * 0.04,
+    borderBottomRightRadius: AVATAR * 0.04,
   },
-  hairShort: {
+  shoulders: {
     position: 'absolute',
-    top: AVATAR * 0.13,
-    width: AVATAR * 0.38,
-    height: AVATAR * 0.34,
-    borderRadius: AVATAR * 0.19,
+    bottom: -AVATAR * 0.2,
+    width: AVATAR * 0.8,
+    height: AVATAR * 0.46,
+    borderTopLeftRadius: AVATAR * 0.4,
+    borderTopRightRadius: AVATAR * 0.4,
+  },
+  neck: {
+    position: 'absolute',
+    top: AVATAR * 0.5,
+    width: AVATAR * 0.12,
+    height: AVATAR * 0.14,
+    borderRadius: AVATAR * 0.04,
   },
   face: {
     position: 'absolute',
     top: AVATAR * 0.22,
     width: AVATAR * 0.3,
-    height: AVATAR * 0.36,
+    height: AVATAR * 0.34,
     borderRadius: AVATAR * 0.15,
   },
+  fringeLong: {
+    position: 'absolute',
+    top: AVATAR * 0.12,
+    width: AVATAR * 0.36,
+    height: AVATAR * 0.14,
+    borderTopLeftRadius: AVATAR * 0.18,
+    borderTopRightRadius: AVATAR * 0.18,
+    borderBottomLeftRadius: AVATAR * 0.02,
+    borderBottomRightRadius: AVATAR * 0.12,
+  },
+  hairShort: {
+    position: 'absolute',
+    top: AVATAR * 0.14,
+    width: AVATAR * 0.34,
+    height: AVATAR * 0.16,
+    borderTopLeftRadius: AVATAR * 0.17,
+    borderTopRightRadius: AVATAR * 0.17,
+    borderBottomLeftRadius: AVATAR * 0.03,
+    borderBottomRightRadius: AVATAR * 0.03,
+  },
+  skinBase: { overflow: 'hidden' },
   heart: {
     position: 'absolute',
     left: AVATAR - HEART * 0.6,

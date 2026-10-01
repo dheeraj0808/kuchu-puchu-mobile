@@ -5,6 +5,7 @@ import { t } from '@/i18n';
 import { queryClient, queryKeys } from '@/lib/queryClient';
 import { resetAllStores } from '@/lib/stores';
 
+import { cancelReauth } from './reauth';
 import { tokenStorage } from './tokenStorage';
 
 /**
@@ -43,6 +44,8 @@ type SessionApi = Pick<typeof authApi, 'refreshSession' | 'logout' | 'fetchMe'>;
 function clearClientState(): void {
   queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== queryKeys.appConfig[0] });
   queryClient.getMutationCache().clear();
+  // A step-up prompt open at sign-out can never complete: fail the waiting request.
+  cancelReauth();
   resetAllStores();
 }
 

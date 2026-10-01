@@ -1,36 +1,61 @@
-import { formatDuration, maskIdentifier, normalizeIdentifier, validateIdentifier, validateOtp } from '@/lib/identifier';
+import {
+  formatNationalPhone,
+  formatPhone,
+  isValidEmail,
+  nationalDigits,
+  normalizeEmail,
+  normalizePhone,
+  phoneProblem,
+} from '@/lib/identifier';
 
-// Cases mirror backend/src/auth/dto/dto-validation.spec.ts.
-describe('identifier rules', () => {
-  it('normalizes like the backend', () => {
-    expect(normalizeIdentifier('email', '  Jane@Example.COM ')).toBe('jane@example.com');
-    expect(normalizeIdentifier('phone', '+91 98765-43210')).toBe('+919876543210');
+describe('phone normalisation (+91, spaces)', () => {
+  it.each([
+    ['9876543210', '+919876543210'],
+    ['98765 43210', '+919876543210'],
+    ['+91 98765 43210', '+919876543210'],
+    ['+91-98765-43210', '+919876543210'],
+    ['(+91) 98765 43210', '+919876543210'],
+    ['919876543210', '+919876543210'],
+    ['0 98765 43210', '+919876543210'],
+    [' 98765 43210 ', '+919876543210'],
+  ])('%p → %p', (raw, e164) => {
+    expect(normalizePhone(raw)).toBe(e164);
   });
 
-  it('validates phone numbers as E.164', () => {
-    expect(validateIdentifier('phone', '+91 98765-43210')).toBeNull();
-    expect(validateIdentifier('phone', '9876543210')).toMatch(/country code/);
-    expect(validateIdentifier('phone', 'jane@example.com')).not.toBeNull();
-    expect(validateIdentifier('phone', '')).toMatch(/Enter your phone/);
+  it('rejects numbers that are not Indian mobiles', () => {
+    expect(normalizePhone('12345 67890')).toBeNull(); // must start 6–9
+    expect(normalizePhone('98765 4321')).toBeNull(); // 9 digits
+    expect(normalizePhone('')).toBeNull();
   });
 
-  it('validates email', () => {
-    expect(validateIdentifier('email', 'jane@example.com')).toBeNull();
-    expect(validateIdentifier('email', '+919876543210')).not.toBeNull();
-    expect(validateIdentifier('email', 'jane@')).not.toBeNull();
-    expect(validateIdentifier('email', `${'a'.repeat(250)}@x.com`)).not.toBeNull();
+  it('keeps a real number that starts with 91', () => {
+    expect(normalizePhone('9198765432')).toBe('+919198765432');
   });
 
-  it('validates OTP digits and length', () => {
-    expect(validateOtp('012345', 6)).toBeNull();
-    expect(validateOtp('12ab56', 6)).not.toBeNull();
-    expect(validateOtp('123', 6)).toMatch(/all 6/);
+  it('caps input at 10 national digits', () => {
+    expect(nationalDigits('98765432101234')).toBe('9876543210');
   });
 
-  it('masks like the backend and formats countdowns', () => {
-    expect(maskIdentifier('email', 'jane@example.com')).toBe('j***@example.com');
-    expect(maskIdentifier('phone', '+919876543210')).toBe('+91******3210');
-    expect(formatDuration(65)).toBe('1:05');
-    expect(formatDuration(-3)).toBe('0:00');
+  it('reports what is wrong, for the button and helper text', () => {
+    expect(phoneProblem('')).toBe('empty');
+    expect(phoneProblem('98765')).toBe('incomplete');
+    expect(phoneProblem('1234567890')).toBe('invalid');
+    expect(phoneProblem('9876543210')).toBeNull();
+  });
+
+  it('formats for display', () => {
+    expect(formatNationalPhone('9876543210')).toBe('98765 43210');
+    expect(formatNationalPhone('987')).toBe('987');
+    expect(formatPhone('+919876543210')).toBe('+91 98765 43210');
+  });
+});
+
+describe('email', () => {
+  it('normalises and validates', () => {
+    expect(normalizeEmail('  Jane@Example.COM ')).toBe('jane@example.com');
+    expect(isValidEmail('jane@example.com')).toBe(true);
+    expect(isValidEmail('jane@example')).toBe(false);
+    expect(isValidEmail('jane example.com')).toBe(false);
+    expect(isValidEmail('')).toBe(false);
   });
 });

@@ -18,6 +18,8 @@ export interface User {
   status: UserStatus;
   role: UserRole;
   createdAt: string;
+  /** Guide contract: returned with the tokens after OTP verify (M06). */
+  nextStep?: OnboardingStep;
 }
 
 /** backend/src/common/onboarding/onboarding-status.service.ts */
@@ -28,9 +30,33 @@ export type OnboardingStep = 'selfie' | 'photos' | 'profile' | 'preferences' | '
  * screens (M09) consume it. `nextStep` is not returned yet (M06); until it
  * is, the gate treats a missing value as 'done'.
  */
+export type Plan = 'free' | 'basic' | 'plus' | 'premium';
+
 export interface Me extends User {
   profile: Record<string, unknown> | null;
-  nextStep?: OnboardingStep;
+  /** Provisional until billing (M21) ships GET /billing/me; absent from the real API today. */
+  plan?: Plan;
+}
+
+/** GET /auth/sessions item (guide M06). */
+export interface DeviceSession {
+  id: string;
+  deviceName: string;
+  /** Approximate city from the sign-in IP; null when unknown. */
+  city: string | null;
+  lastActiveAt: string;
+  isCurrent: boolean;
+}
+
+/** POST /auth/reauth/request */
+export interface ReauthRequestResponse {
+  expiresInSeconds: number;
+  resendAfterSeconds: number;
+}
+
+/** POST /auth/reauth/verify — the server remembers the step-up for this session. */
+export interface ReauthVerifyResponse {
+  validForSeconds: number;
 }
 
 /** POST /auth/request-otp body (RequestOtpDto) */

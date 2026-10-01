@@ -1,63 +1,73 @@
-import type { IdentifierType } from '@/api/types';
-
 /**
- * Mirrors backend/src/auth/utils/identifier.util.ts and the RequestOtpDto
- * rules. Client validation is for UX only; the backend remains authoritative.
+ * Sign-in identifiers. Client checks are for UX only; the backend stays
+ * authoritative (guide §10.2).
  */
 
-export const E164_REGEX = /^\+[1-9]\d{7,14}$/;
+export const COUNTRY_CODE = '+91';
 const MAX_EMAIL_LENGTH = 254;
 // Pragmatic check; the backend's class-validator isEmail() has the final say.
 const EMAIL_REGEX = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
+/** Indian mobile numbers: 10 digits starting 6–9. */
+const INDIAN_MOBILE = /^[6-9]\d{9}$/;
+
+export type PhoneProblem = 'empty' | 'incomplete' | 'invalid';
+
+/**
+ * The 10 national digits from whatever was typed or pasted:
+ * "98765 43210", "+91 98765-43210", "0 98765 43210" and "919876543210" all → "9876543210".
+ */
+export function nationalDigits(raw: string): string {
+  let digits = raw.replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) digits = digits.slice(2);
+  else if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
+  return digits.slice(0, 10);
+}
+
+/** E.164 for the API: "+919876543210", or null when not a valid Indian mobile. */
+export function normalizePhone(raw: string): string | null {
+  const digits = nationalDigits(raw);
+  return INDIAN_MOBILE.test(digits) ? `${COUNTRY_CODE}${digits}` : null;
+}
+
+export function phoneProblem(raw: string): PhoneProblem | null {
+  const digits = nationalDigits(raw);
+  if (!digits) return 'empty';
+  if (digits.length < 10) return 'incomplete';
+  return INDIAN_MOBILE.test(digits) ? null : 'invalid';
+}
+
+/** "98765 43210" — how the field shows the national number. */
+export function formatNationalPhone(raw: string): string {
+  const digits = nationalDigits(raw);
+  return digits.length > 5 ? `${digits.slice(0, 5)} ${digits.slice(5)}` : digits;
+}
+
+/** "+91 98765 43210" — for "Sent to …". */
+export function formatPhone(e164: string): string {
+  return `${COUNTRY_CODE} ${formatNationalPhone(e164)}`;
+}
+
+/** "+91 98••• ••210" — Settings shows the number without revealing it (deck 40). */
+export function maskPhone(e164: string): string {
+  const digits = nationalDigits(e164);
+  if (digits.length !== 10) return `${COUNTRY_CODE} ••••• •••••`;
+  return `${COUNTRY_CODE} ${digits.slice(0, 2)}••• ••${digits.slice(7)}`;
+}
+
+/** "j•••@example.com" */
+export function maskEmail(email: string): string {
+  const at = email.lastIndexOf('@');
+  if (at <= 0) return '•••';
+  return `${email[0]}•••${email.slice(at)}`;
+}
 
 export function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
 }
 
-export function normalizePhone(value: string): string {
-  return value.trim().replace(/[\s\-().]/g, '');
-}
-
-export function normalizeIdentifier(type: IdentifierType, value: string): string {
-  return type === 'email' ? normalizeEmail(value) : normalizePhone(value);
-}
-
-/** Returns an error message, or null when valid. Expects a raw (un-normalized) value. */
-export function validateIdentifier(type: IdentifierType, raw: string): string | null {
-  const value = normalizeIdentifier(type, raw);
-  if (type === 'email') {
-    if (!value) return 'Enter your email address.';
-    if (value.length > MAX_EMAIL_LENGTH || !EMAIL_REGEX.test(value)) return 'Enter a valid email address.';
-    return null;
-  }
-  if (!value) return 'Enter your phone number.';
-  if (!value.startsWith('+')) return 'Include your country code, e.g. +91 98765 43210.';
-  if (!E164_REGEX.test(value)) return 'Enter a valid phone number with country code.';
-  return null;
-}
-
-export function validateOtp(code: string, length: number): string | null {
-  if (!code) return 'Enter the verification code.';
-  if (!/^\d+$/.test(code)) return 'The code contains digits only.';
-  if (code.length !== length) return `Enter all ${length} digits.`;
-  return null;
-}
-
-/** j***@example.com — mirrors the backend's masking. */
-export function maskEmail(email: string): string {
-  const at = email.lastIndexOf('@');
-  if (at <= 0) return '***';
-  return `${email[0]}***@${email.slice(at + 1)}`;
-}
-
-/** +91******3210 */
-export function maskPhone(phone: string): string {
-  if (phone.length <= 7) return '*'.repeat(phone.length);
-  return `${phone.slice(0, 3)}${'*'.repeat(phone.length - 7)}${phone.slice(-4)}`;
-}
-
-export function maskIdentifier(type: IdentifierType, identifier: string): string {
-  return type === 'email' ? maskEmail(identifier) : maskPhone(identifier);
+export function isValidEmail(raw: string): boolean {
+  const value = normalizeEmail(raw);
+  return value.length > 0 && value.length <= MAX_EMAIL_LENGTH && EMAIL_REGEX.test(value);
 }
 
 export function formatDuration(totalSeconds: number): string {

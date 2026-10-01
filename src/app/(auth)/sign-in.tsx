@@ -2,155 +2,179 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { StyleSheet, View, type TextInput } from 'react-native';
 
-import * as authApi from '@/api/auth';
-import { ErrorCode, isApiError, errorMessage } from '@/api/errors';
 import type { IdentifierType } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
-import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { Button } from '@/components/Button';
-import { Screen } from '@/components/Screen';
 import { SegmentedControl } from '@/components/SegmentedControl';
+import { StepScreen } from '@/components/StepScreen';
 import { TextField } from '@/components/TextField';
-import { Wordmark } from '@/components/Wordmark';
-import { resumeOtpFlowAfterCooldown, startOtpFlow } from '@/features/auth/otpFlow';
-import { normalizeIdentifier, validateIdentifier } from '@/lib/identifier';
+import { requestCode } from '@/features/auth/requestCode';
+import { useCountdown } from '@/hooks/useCountdown';
+import { t } from '@/i18n';
+import {
+  COUNTRY_CODE,
+  formatDuration,
+  formatNationalPhone,
+  isValidEmail,
+  nationalDigits,
+  normalizeEmail,
+  normalizePhone,
+  phoneProblem,
+} from '@/lib/identifier';
 import { spacing } from '@/theme';
 
 const METHODS = [
-  { value: 'phone', label: 'Phone' },
-  { value: 'email', label: 'Email' },
+  { value: 'phone', label: t('signIn.phoneTab') },
+  { value: 'email', label: t('signIn.emailTab') },
 ] as const;
 
+/**
+ * Screen 02 — Sign in. Phone (+91, 10 digits) or email. "Send code" stays
+ * disabled until the input is valid; the reply is the same for every number.
+ * States: content, sending (button loading), rate-limited (countdown), error (banner).
+ */
 export default function SignInScreen() {
   const { notice, clearNotice } = useAuth();
   const inputRef = useRef<TextInput>(null);
-
   // Welcome passes the button the user tapped ("Continue with phone / email").
   const params = useLocalSearchParams<{ method?: string }>();
-  const [method, setMethod] = useState<IdentifierType>(params.method === 'email' ? 'email' : 'phone');
-  // Keep each method's draft so switching tabs doesn't lose what was typed.
-  const [values, setValues] = useState<Record<IdentifierType, string>>({ email: '', phone: '' });
-  const [fieldError, setFieldError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
+  const [method, setMethod] = useState<IdentifierType>(params.method === 'email' ? 'email' : 'phone');
+  // Each tab keeps its own draft so switching doesn't lose what was typed.
+  const [values, setValues] = useState<Record<IdentifierType, string>>({ email: '', phone: '' });
+  const [serverInvalid, setServerInvalid] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [waitUntil, setWaitUntil] = useState<number | null>(null);
+  const waitSeconds = useCountdown(waitUntil) ?? 0;
+
+  const isPhone = method === 'phone';
   const value = values[method];
+  const identifier = isPhone ? normalizePhone(value) : isValidEmail(value) ? normalizeEmail(value) : null;
+  // Only complain once the input looks finished; "Send code" is disabled meanwhile.
+  const fieldError =
+    serverInvalid || (isPhone ? phoneProblem(value) === 'invalid' : value.includes('@') && value.includes('.') && !identifier)
+      ? t(isPhone ? 'signIn.phoneInvalid' : 'signIn.emailInvalid')
+      : null;
+  const waiting = waitSeconds > 0;
 
   const changeMethod = (next: IdentifierType) => {
     setMethod(next);
-    setFieldError(null);
+    setServerInvalid(false);
     setFormError(null);
-    setSubmitted(false);
     requestAnimationFrame(() => inputRef.current?.focus());
   };
 
   const changeValue = (text: string) => {
-    setValues((prev) => ({ ...prev, [method]: text }));
+    setValues((prev) => ({ ...prev, [method]: isPhone ? nationalDigits(text) : text }));
+    setServerInvalid(false);
     if (formError) setFormError(null);
-    // Re-validate live only after the first submit attempt, to avoid nagging.
-    if (submitted) setFieldError(validateIdentifier(method, text));
   };
 
   const submit = async () => {
-    if (submitting) return;
-    setSubmitted(true);
-    setFormError(null);
+    if (!identifier || submitting || waiting) return;
     clearNotice();
-
-    const error = validateIdentifier(method, value);
-    setFieldError(error);
-    if (error) {
-      inputRef.current?.focus();
-      return;
-    }
-
-    const identifier = normalizeIdentifier(method, value);
+    setFormError(null);
     setSubmitting(true);
-    try {
-      const response = await authApi.requestOtp({ identifierType: method, identifier });
-      startOtpFlow(method, identifier, response);
-      router.push('/verify');
-    } catch (err) {
-      if (isApiError(err) && err.code === ErrorCode.OtpCooldown && err.retryAfterSeconds) {
-        // A code was sent moments ago and is still valid — continue with it.
-        resumeOtpFlowAfterCooldown(method, identifier, err.retryAfterSeconds);
+    const outcome = await requestCode(method, identifier);
+    setSubmitting(false);
+
+    switch (outcome.kind) {
+      case 'sent':
         router.push('/verify');
         return;
-      }
-      if (isApiError(err) && err.fieldErrors.identifier) {
-        setFieldError(err.fieldErrors.identifier);
+      case 'wait':
+        setWaitUntil(outcome.until);
+        return;
+      case 'invalid':
+        setServerInvalid(true);
         inputRef.current?.focus();
-      } else {
-        setFormError(errorMessage(err));
-      }
-    } finally {
-      setSubmitting(false);
+        return;
+      case 'error':
+        setFormError(outcome.message);
     }
   };
 
-  const isEmail = method === 'email';
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/welcome'));
 
   return (
-    <Screen>
-      <View style={styles.stack}>
-        <Wordmark />
-
-        <View style={styles.copy}>
-          <AppText variant="display">Welcome</AppText>
-          <AppText tone="muted">Sign in or create your account. We’ll send a one-time code to confirm it’s you.</AppText>
-        </View>
-
+    <StepScreen
+      title={t(isPhone ? 'signIn.titlePhone' : 'signIn.titleEmail')}
+      subtitle={t(isPhone ? 'signIn.subtitlePhone' : 'signIn.subtitleEmail')}
+      onBack={goBack}
+      backDisabled={submitting}
+      footer={
+        <Button
+          label={waiting ? t('signIn.waitToSend', { time: formatDuration(waitSeconds) }) : t('signIn.send')}
+          loading={submitting}
+          loadingLabel={t('signIn.sending')}
+          disabled={!identifier || waiting}
+          onPress={submit}
+        />
+      }>
+      <View style={styles.form}>
         {notice ? <Banner tone="info" message={notice} /> : null}
 
         <SegmentedControl
-          accessibilityLabel="Sign in with"
+          accessibilityLabel={t('signIn.methodLabel')}
           options={METHODS}
           value={method}
           onChange={changeMethod}
           disabled={submitting}
         />
 
-        <TextField
-          key={method}
-          ref={inputRef}
-          label={isEmail ? 'Email address' : 'Phone number'}
-          placeholder={isEmail ? 'you@example.com' : '+91 98765 43210'}
-          hint={isEmail ? undefined : 'Include your country code.'}
-          value={value}
-          onChangeText={changeValue}
-          onBlur={() => submitted && setFieldError(validateIdentifier(method, value))}
-          onSubmitEditing={submit}
-          error={fieldError}
-          editable={!submitting}
-          keyboardType={isEmail ? 'email-address' : 'phone-pad'}
-          inputMode={isEmail ? 'email' : 'tel'}
-          textContentType={isEmail ? 'emailAddress' : 'telephoneNumber'}
-          autoComplete={isEmail ? 'email' : 'tel'}
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="send"
-          maxLength={isEmail ? 254 : 24}
-          autoFocus
-        />
+        {isPhone ? (
+          <TextField
+            key="phone"
+            ref={inputRef}
+            label={t('signIn.phoneLabel')}
+            prefix={COUNTRY_CODE}
+            placeholder={t('signIn.phonePlaceholder')}
+            hint={t('signIn.phoneHelper')}
+            error={fieldError}
+            value={formatNationalPhone(value)}
+            onChangeText={changeValue}
+            onSubmitEditing={submit}
+            editable={!submitting}
+            keyboardType="phone-pad"
+            inputMode="tel"
+            textContentType="telephoneNumber"
+            autoComplete="tel-national"
+            returnKeyType="send"
+            maxLength={16}
+            autoFocus
+          />
+        ) : (
+          <TextField
+            key="email"
+            ref={inputRef}
+            label={t('signIn.emailLabel')}
+            placeholder={t('signIn.emailPlaceholder')}
+            hint={t('signIn.emailHelper')}
+            error={fieldError}
+            value={value}
+            onChangeText={changeValue}
+            onSubmitEditing={submit}
+            editable={!submitting}
+            keyboardType="email-address"
+            inputMode="email"
+            textContentType="emailAddress"
+            autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="send"
+            maxLength={254}
+            autoFocus
+          />
+        )}
 
-        {formError ? <Banner message={formError} actionLabel="Retry" onAction={submit} /> : null}
-
-        <Button label="Send code" loading={submitting} loadingLabel="Sending code…" onPress={submit} />
-
-        <View style={styles.trust}>
-          <AppText variant="caption" tone="muted" align="center">
-            🔒 Passwordless sign-in. Codes expire after a few minutes and can only be used once.
-          </AppText>
-        </View>
+        {formError ? <Banner message={formError} actionLabel={t('common.tryAgain')} onAction={submit} /> : null}
       </View>
-    </Screen>
+    </StepScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  stack: { gap: spacing.lg },
-  copy: { gap: spacing.xs },
-  trust: { paddingHorizontal: spacing.sm },
+  form: { gap: spacing.lg },
 });

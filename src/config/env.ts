@@ -2,6 +2,8 @@ import * as Application from 'expo-application';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+import type { OnboardingStep } from '@/api/types';
+
 /**
  * Public runtime configuration. EXPO_PUBLIC_* variables are inlined at build
  * time, so they must be read with static `process.env.EXPO_PUBLIC_X` access.
@@ -49,6 +51,11 @@ function readPlatform(): 'android' | 'ios' | null {
   return Platform.OS === 'android' || Platform.OS === 'ios' ? Platform.OS : null;
 }
 
+function readNextStep(raw: string | undefined): OnboardingStep {
+  const steps: readonly OnboardingStep[] = ['selfie', 'photos', 'profile', 'preferences', 'done'];
+  return steps.find((step) => step === raw) ?? 'done';
+}
+
 const appEnv = readAppEnv(process.env.EXPO_PUBLIC_APP_ENV);
 const websiteUrl = (process.env.EXPO_PUBLIC_WEBSITE_URL?.trim() || DEFAULT_WEBSITE_URL).replace(/\/+$/, '');
 
@@ -56,11 +63,20 @@ export const env = {
   appEnv,
   apiUrl: readApiUrl(process.env.EXPO_PUBLIC_API_URL, appEnv),
   appVersion: readAppVersion(),
+  /** Store build number (Android versionCode), shown as "Version 1.0.0 (42)". */
+  buildNumber: Application.nativeBuildVersion ?? null,
   platform: readPlatform(),
   /** Android package / iOS bundle id of this build; used for the store link. */
   applicationId: Application.applicationId,
   termsUrl: `${websiteUrl}/terms`,
   privacyUrl: `${websiteUrl}/privacy`,
+  /**
+   * USE_AUTH_MOCK: serve auth from src/api/mocks/auth.ts until backend M06
+   * ships the guide's contract. Ignored in production builds.
+   */
+  useAuthMock: appEnv !== 'production' && process.env.EXPO_PUBLIC_USE_AUTH_MOCK === 'true',
+  /** nextStep the mock returns after sign-in (routes the gate). */
+  authMockNextStep: readNextStep(process.env.EXPO_PUBLIC_AUTH_MOCK_NEXT_STEP),
   /** Mirrors backend OTP_LENGTH (backend accepts 4–10 digits). */
   otpLength: readInt(process.env.EXPO_PUBLIC_OTP_LENGTH, 6, 4, 10),
   /** Mirrors backend OTP_MAX_ATTEMPTS; used only to guide the user. */

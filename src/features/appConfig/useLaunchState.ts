@@ -29,6 +29,12 @@ export function useLaunchState(): UseLaunchState {
     queryKey: queryKeys.appConfig,
     queryFn: () => fetchLaunchState(),
     staleTime: 5 * 60_000,
+    // The gate and the blocked screens all read this query. By default a newly
+    // mounted reader resets a failed query to "pending", which blanks the gate,
+    // unmounts the Offline screen, fails again and loops. Re-checks happen only
+    // via Try again, the interval, focus and reconnect.
+    retryOnMount: false,
+    refetchOnMount: false,
     // Offline or planned downtime: poll so the user doesn't have to.
     refetchInterval: (q) => {
       const data = q.state.data;

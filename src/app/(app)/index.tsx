@@ -1,3 +1,5 @@
+import { router } from 'expo-router';
+
 import { SignedInPlaceholder } from '@/features/session/SignedInPlaceholder';
 import { t } from '@/i18n';
 
@@ -9,6 +11,8 @@ export default function AppIndex() {
       body={t('home.body')}
       signOutLabel={t('home.signOut')}
       signingOutLabel={t('home.signingOut')}
+      settingsLabel={t('home.settings')}
+      onOpenSettings={() => router.push('/settings')}
     />
   );
 }
