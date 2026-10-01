@@ -40,6 +40,7 @@ export function ConfirmDialog({
         accessibilityLabel={t('common.cancel')}
         importantForAccessibility="no">
         <Pressable style={[styles.card, { backgroundColor: colors.background }]} accessibilityViewIsModal onPress={() => undefined}>
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.tint, { backgroundColor: colors.elevatedTint }]} />
           <View style={styles.copy}>
             <AppText variant="title" role="heading">
               {title}
@@ -67,6 +68,7 @@ const BACKDROP = alpha(brand.black, 0.45);
 const styles = StyleSheet.create({
   backdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
   card: { width: '100%', maxWidth: layout.formMaxWidth, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.lg },
+  tint: { borderRadius: radius.lg },
   copy: { gap: spacing.xs },
   actions: { gap: spacing.xxs },
 });

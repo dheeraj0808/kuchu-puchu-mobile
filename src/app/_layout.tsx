@@ -3,6 +3,8 @@ import { useFonts } from 'expo-font';
 import { SplashScreen, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
@@ -19,13 +21,15 @@ export default function RootLayout() {
   useEffect(connectReactQueryToDevice, []);
 
   return (
-    <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <RootNavigator fontsReady={fontsLoaded || !!fontError} />
-        </AuthProvider>
-      </QueryClientProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <RootNavigator fontsReady={fontsLoaded || !!fontError} />
+          </AuthProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -36,6 +40,7 @@ export default function RootLayout() {
  *   below minVersion ........ update-required (04)
  *   maintenance on .......... maintenance (05)
  *   offline at launch ....... offline (50)
+ *   account restricted ...... restricted (49)
  *   no session .............. (auth)/welcome (01)
  *   nextStep ≠ done ......... (onboarding)
  *   nextStep = done ......... (app)
@@ -43,7 +48,7 @@ export default function RootLayout() {
  * Only one group is reachable at a time, so deep links can't skip the gate.
  */
 function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
-  const { status, user } = useAuth();
+  const { status, user, restriction } = useAuth();
   const { pending, blocker } = useLaunchBlocker();
   const { colors, scheme } = useTheme();
 
@@ -55,7 +60,9 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
   // Nothing renders until the gate is decided, so protected content never flashes.
   if (!ready) return null;
 
-  const open = blocker === null;
+  // 403 ACCOUNT_RESTRICTED: screen 49 only; nothing else is reachable.
+  const restricted = status === 'signedIn' && restriction !== null;
+  const open = blocker === null && !restricted;
   const onboarded = (user?.nextStep ?? 'done') === 'done';
 
   return (
@@ -74,6 +81,9 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Protected guard={blocker === 'error'}>
           <Stack.Screen name="launch-error" />
         </Stack.Protected>
+        <Stack.Protected guard={blocker === null && restricted}>
+          <Stack.Screen name="restricted" />
+        </Stack.Protected>
         <Stack.Protected guard={open && status === 'signedOut'}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
@@ -87,3 +97,5 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
     </>
   );
 }
+
+const styles = StyleSheet.create({ root: { flex: 1 } });

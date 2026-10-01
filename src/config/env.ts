@@ -56,6 +56,10 @@ function readNextStep(raw: string | undefined): OnboardingStep {
   return steps.find((step) => step === raw) ?? 'done';
 }
 
+function readChoice<T extends string>(raw: string | undefined, options: readonly T[], fallback: T): T {
+  return options.find((o) => o === raw) ?? fallback;
+}
+
 const appEnv = readAppEnv(process.env.EXPO_PUBLIC_APP_ENV);
 const websiteUrl = (process.env.EXPO_PUBLIC_WEBSITE_URL?.trim() || DEFAULT_WEBSITE_URL).replace(/\/+$/, '');
 
@@ -75,6 +79,22 @@ export const env = {
    * ships the guide's contract. Ignored in production builds.
    */
   useAuthMock: appEnv !== 'production' && process.env.EXPO_PUBLIC_USE_AUTH_MOCK === 'true',
+  /** Mock selfie decision from /verification/face/complete. */
+  mockSelfieResult: readChoice(process.env.EXPO_PUBLIC_MOCK_SELFIE_RESULT, ['approved', 'review', 'rejected'] as const, 'approved'),
+  /** Mock: the 4th uploaded photo stays in review or is rejected instead of auto-approving. */
+  mockPhotoException: readChoice(process.env.EXPO_PUBLIC_MOCK_PHOTO_EXCEPTION, ['none', 'review', 'rejected'] as const, 'none'),
+  supportUrl: `${websiteUrl}/support`,
+  guidelinesUrl: `${websiteUrl}/community-guidelines`,
+  /** Mock account status: suspended / banned answer every request with 403 ACCOUNT_RESTRICTED. */
+  mockAccountStatus: readChoice(process.env.EXPO_PUBLIC_MOCK_ACCOUNT_STATUS, ['active', 'suspended', 'banned'] as const, 'active'),
+  mockAppealAllowed: process.env.EXPO_PUBLIC_MOCK_APPEAL_ALLOWED !== 'false',
+  /** Mock discovery: an empty queue (screen 25), or 409 DISCOVERY_NOT_READY. */
+  mockDiscoveryEmpty: process.env.EXPO_PUBLIC_MOCK_DISCOVERY_EMPTY === 'true',
+  mockDiscoveryNotReady: process.env.EXPO_PUBLIC_MOCK_DISCOVERY_NOT_READY === 'true',
+  /** Mock: likes allowed per day before 429 LIKE_LIMIT_REACHED. */
+  mockLikeLimit: readInt(process.env.EXPO_PUBLIC_MOCK_LIKE_LIMIT, 25, 1, 1000),
+  /** FEATURE_SUPER_LIKE: the star button (no backend API yet). */
+  featureSuperLike: process.env.EXPO_PUBLIC_FEATURE_SUPER_LIKE === 'true',
   /** nextStep the mock returns after sign-in (routes the gate). */
   authMockNextStep: readNextStep(process.env.EXPO_PUBLIC_AUTH_MOCK_NEXT_STEP),
   /** Mirrors backend OTP_LENGTH (backend accepts 4–10 digits). */
@@ -83,6 +103,8 @@ export const env = {
   otpMaxAttempts: readInt(process.env.EXPO_PUBLIC_OTP_MAX_ATTEMPTS, 5, 1, 20),
   /** Guide §6: 15 s default. */
   requestTimeoutMs: 15_000,
+  /** Guide §6: 60 s for photo upload. */
+  uploadTimeoutMs: 60_000,
   logoutTimeoutMs: 5_000,
   /** Guide §6: GET and idempotent writes retry at most twice. */
   maxRetries: 2,

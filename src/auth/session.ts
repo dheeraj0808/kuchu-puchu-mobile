@@ -1,11 +1,12 @@
 import * as authApi from '@/api/auth';
 import { ApiError, ErrorCode, isApiError } from '@/api/errors';
-import type { AuthTokens, Me, User } from '@/api/types';
+import type { AuthTokens, Me, Restriction, User } from '@/api/types';
 import { t } from '@/i18n';
 import { queryClient, queryKeys } from '@/lib/queryClient';
 import { resetAllStores } from '@/lib/stores';
 
 import { cancelReauth } from './reauth';
+import { restrictionFrom } from './restriction';
 import { tokenStorage } from './tokenStorage';
 
 /**
@@ -32,6 +33,11 @@ export interface SessionSnapshot {
   restoreError: ApiError | null;
   /** User-facing reason the last session ended (expired, restricted…). */
   notice: string | null;
+  /**
+   * Set when the server answers 403 ACCOUNT_RESTRICTED (guide M15). The session
+   * is kept — the user may need it to appeal — but the gate shows only screen 49.
+   */
+  restriction: Restriction | null;
 }
 
 /** Refresh slightly before the access token actually expires. */
@@ -50,7 +56,7 @@ function clearClientState(): void {
 }
 
 export class SessionManager {
-  private snapshot: SessionSnapshot = { status: 'unknown', user: null, restoreError: null, notice: null };
+  private snapshot: SessionSnapshot = { status: 'unknown', user: null, restoreError: null, notice: null, restriction: null };
   private readonly listeners = new Set<Listener>();
 
   private accessToken: string | null = null;
@@ -91,12 +97,13 @@ export class SessionManager {
   async signIn(tokens: AuthTokens): Promise<void> {
     this.generation += 1;
     await this.applyTokens(tokens);
-    this.setSnapshot({ status: 'signedIn', user: meFromUser(tokens.user), restoreError: null, notice: null });
+    this.setSnapshot({ status: 'signedIn', user: meFromUser(tokens.user), restoreError: null, notice: null, restriction: null });
     // /auth/me carries the profile (and later nextStep); the tokens only carry the account.
     try {
       this.updateUser(await this.api.fetchMe(tokens.accessToken));
-    } catch {
-      // Kept signed in; screens reload /auth/me when they need it.
+    } catch (err) {
+      // Restricted → screen 49. Anything else: kept signed in; screens reload /auth/me when needed.
+      this.reportRestriction(err);
     }
   }
 
@@ -128,9 +135,18 @@ export class SessionManager {
     return this.refreshPromise;
   }
 
+  /** A successful /auth/me also lifts a restriction that has ended. */
   updateUser(user: Me): void {
     if (this.snapshot.status !== 'signedIn') return;
-    this.setSnapshot({ user });
+    this.setSnapshot({ user, restriction: null });
+  }
+
+  /** Records 403 ACCOUNT_RESTRICTED from any request. Returns true when `err` was one. */
+  reportRestriction(err: unknown): boolean {
+    const restriction = restrictionFrom(err);
+    if (!restriction || this.snapshot.status !== 'signedIn') return false;
+    this.setSnapshot({ restriction });
+    return true;
   }
 
   clearNotice(): void {
@@ -160,7 +176,7 @@ export class SessionManager {
     this.refreshToken = null;
     await this.storage.clearRefreshToken();
     this.clearState();
-    this.setSnapshot({ status: 'signedOut', user: null, restoreError: null, notice });
+    this.setSnapshot({ status: 'signedOut', user: null, restoreError: null, notice, restriction: null });
   }
 
   private async runRestore(): Promise<void> {
@@ -170,9 +186,15 @@ export class SessionManager {
       if (!token) return; // Nothing stored, or refresh refused: already signed out.
       const me = await this.api.fetchMe(token);
       if (generation !== this.generation) return;
-      this.setSnapshot({ status: 'signedIn', user: me, restoreError: null, notice: null });
+      this.setSnapshot({ status: 'signedIn', user: me, restoreError: null, notice: null, restriction: null });
     } catch (err) {
       if (generation !== this.generation) return;
+      const restriction = restrictionFrom(err);
+      if (restriction) {
+        // Signed in, but only screen 49 is reachable.
+        this.setSnapshot({ status: 'signedIn', user: null, restoreError: null, notice: null, restriction });
+        return;
+      }
       if (isSessionRejection(err)) {
         await this.end(sessionEndedNotice(err));
         return;

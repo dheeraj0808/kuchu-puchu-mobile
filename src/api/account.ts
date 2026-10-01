@@ -5,6 +5,8 @@ import { env } from '@/config/env';
 import { authedRequest } from './client';
 import { ApiError } from './errors';
 import { mockAuth } from './mocks/auth';
+// Registers the selfie/photo fields on mock /auth/me (no effect with the real API).
+import './mocks/verification';
 import type { DeviceSession, Me, MessageResponse, ReauthRequestResponse, ReauthVerifyResponse } from './types';
 
 /**
@@ -20,7 +22,10 @@ async function mockToken(): Promise<string> {
 }
 
 function viaMock<T>(call: (token: string) => Promise<T>): Promise<T> {
-  return withReauth(async () => call(await mockToken()));
+  return withReauth(async () => call(await mockToken())).catch((err: unknown) => {
+    session.reportRestriction(err);
+    throw err;
+  });
 }
 
 export function getMe(): Promise<Me> {

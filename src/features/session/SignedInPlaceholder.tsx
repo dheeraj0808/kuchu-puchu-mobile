@@ -13,16 +13,10 @@ interface Props {
   body: string;
   signOutLabel: string;
   signingOutLabel: string;
-  /** Temporary way into Settings until the Profile tab exists. */
-  onOpenSettings?: () => void;
-  settingsLabel?: string;
 }
 
-/**
- * Interim landing for signed-in users until the Phase 2 (onboarding) and
- * Phase 4 (tabs) screens exist. Keeps sign-out reachable for testing.
- */
-export function SignedInPlaceholder({ title, body, signOutLabel, signingOutLabel, onOpenSettings, settingsLabel }: Props) {
+/** Interim onboarding screen while the server moves to a step the app doesn't have yet. Keeps sign-out reachable. */
+export function SignedInPlaceholder({ title, body, signOutLabel, signingOutLabel }: Props) {
   const { signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
 
@@ -43,14 +37,7 @@ export function SignedInPlaceholder({ title, body, signOutLabel, signingOutLabel
           <AppText variant="display">{title}</AppText>
           <AppText tone="muted">{body}</AppText>
         </View>
-        {onOpenSettings && settingsLabel ? <Button icon="cog-outline" label={settingsLabel} onPress={onOpenSettings} /> : null}
-        <Button
-          variant="secondary"
-          label={signOutLabel}
-          loading={signingOut}
-          loadingLabel={signingOutLabel}
-          onPress={handleSignOut}
-        />
+        <Button variant="secondary" label={signOutLabel} loading={signingOut} loadingLabel={signingOutLabel} onPress={handleSignOut} />
       </View>
     </Screen>
   );

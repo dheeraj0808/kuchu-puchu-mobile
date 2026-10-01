@@ -11,15 +11,18 @@ interface ListScreenProps {
   onBack: () => void;
   /** Pinned to the bottom (e.g. "Sign out of all devices"). */
   footer?: ReactNode;
+  /** X instead of a back chevron (deck 46). */
+  close?: boolean;
+  backLabel?: string;
 }
 
 /** Centred-title screen with scrolling content (deck 40, 45, 48). */
-export function ListScreen({ title, onBack, footer, children }: PropsWithChildren<ListScreenProps>) {
+export function ListScreen({ title, onBack, footer, close, backLabel, children }: PropsWithChildren<ListScreenProps>) {
   const { colors } = useTheme();
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: colors.background }]}>
       <View style={styles.column}>
-        <ScreenHeader title={title} onBack={onBack} />
+        <ScreenHeader title={title} onBack={onBack} close={close} backLabel={backLabel} />
       </View>
       <ScrollView style={styles.flex} contentContainerStyle={[styles.column, styles.scroll]}>
         {children}

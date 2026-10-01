@@ -43,6 +43,24 @@ const light = {
   /** Welcome illustration: rose skin tone and soft bubbles, derived from the brand pink. */
   illustrationSkin: alpha(brand.pink, 0.55),
   illustrationBubble: alpha(brand.white, 0.45),
+  /** Laid over `background` on dialogs and sheets so they lift off the page (none in light). */
+  elevatedTint: 'transparent',
+  /** Over profile photos (deck 18, 19): same in both themes. */
+  onPhoto: brand.white,
+  onPhotoMuted: alpha(brand.white, 0.8),
+  photoScrim: alpha(brand.black, 0.78),
+  photoScrimClear: alpha(brand.black, 0),
+  photoPill: alpha(brand.white, 0.14),
+  photoPillBorder: alpha(brand.white, 0.55),
+  photoPromptBox: alpha(brand.black, 0.36),
+  photoDot: alpha(brand.white, 0.45),
+  photoButton: alpha(brand.white, 0.92),
+  /** Live selfie (deck 07) is always dark, in both themes. */
+  camera: brand.black,
+  onCamera: brand.white,
+  cameraTrack: alpha(brand.white, 0.2),
+  cameraChip: alpha(brand.white, 0.14),
+  cameraChipBorder: alpha(brand.white, 0.35),
   shadowRaised: `0px 1px 4px ${alpha(brand.black, 0.1)}`,
   shadowCard: `0px 8px 24px ${alpha(brand.black, 0.08)}`,
 };
@@ -69,6 +87,23 @@ const dark: ColorPalette = {
   onPrimaryBorder: alpha(brand.white, 0.6),
   illustrationSkin: alpha(brand.pink, 0.55),
   illustrationBubble: alpha(brand.white, 0.45),
+  elevatedTint: alpha(brand.white, 0.08),
+  /** Live selfie (deck 07) is always dark, in both themes. */
+  /** Over profile photos (deck 18, 19): same in both themes. */
+  onPhoto: brand.white,
+  onPhotoMuted: alpha(brand.white, 0.8),
+  photoScrim: alpha(brand.black, 0.78),
+  photoScrimClear: alpha(brand.black, 0),
+  photoPill: alpha(brand.white, 0.14),
+  photoPillBorder: alpha(brand.white, 0.55),
+  photoPromptBox: alpha(brand.black, 0.36),
+  photoDot: alpha(brand.white, 0.45),
+  photoButton: alpha(brand.white, 0.92),
+  camera: brand.black,
+  onCamera: brand.white,
+  cameraTrack: alpha(brand.white, 0.2),
+  cameraChip: alpha(brand.white, 0.14),
+  cameraChipBorder: alpha(brand.white, 0.35),
   shadowRaised: `0px 1px 4px ${alpha(brand.black, 0.4)}`,
   shadowCard: `0px 8px 24px ${alpha(brand.black, 0.45)}`,
 };

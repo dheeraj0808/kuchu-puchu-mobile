@@ -48,6 +48,8 @@ export interface ErrorUi {
   nextStep: string | null;
   /** ENTITLEMENT_REQUIRED → details.entitlement. */
   entitlement: string | null;
+  /** The input to highlight, e.g. CONTACT_DETAILS_NOT_ALLOWED → details.field ("bio"). */
+  field: string | null;
 }
 
 const ACTION_BY_CODE: Record<string, ErrorUiAction> = {
@@ -64,10 +66,15 @@ const ACTION_BY_CODE: Record<string, ErrorUiAction> = {
   [ErrorCode.UserNotFound]: 'notFound',
   [ErrorCode.ProfileNotFound]: 'notFound',
   [ErrorCode.MatchNotFound]: 'notFound',
+  [ErrorCode.ReportTargetInvalid]: 'notFound',
   [ErrorCode.PhotoLimitReached]: 'message',
   [ErrorCode.DiscoveryNotReady]: 'onboarding',
   [ErrorCode.InteractionAlreadyLiked]: 'message',
   [ErrorCode.ContactDetailsNotAllowed]: 'fieldErrors',
+  [ErrorCode.Underage]: 'fieldErrors',
+  [ErrorCode.ProfileDobLocked]: 'message',
+  [ErrorCode.ProfileAlreadyExists]: 'onboarding',
+  [ErrorCode.InvalidInterests]: 'message',
   [ErrorCode.ContactSharingLocked]: 'contactLocked',
   [ErrorCode.PhotoFaceMismatch]: 'message',
   [ErrorCode.PhotoInvalidFile]: 'message',
@@ -96,6 +103,7 @@ export function resolveErrorUi(err: unknown): ErrorUi {
     fieldErrors: error.fieldErrors,
     nextStep: stringDetail(error, 'nextStep'),
     entitlement: stringDetail(error, 'entitlement'),
+    field: stringDetail(error, 'field'),
   };
 }
 

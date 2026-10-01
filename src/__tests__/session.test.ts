@@ -15,7 +15,7 @@ const user = {
   createdAt: '2026-09-29T00:00:00.000Z',
 };
 
-const me: Me = { ...user, profile: { displayName: 'Jane' } };
+const me: Me = { ...user, profile: null, plan: 'plus' };
 
 function tokens(n: number, expiresIn = 900): AuthTokens {
   return {

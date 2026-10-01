@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { alpha, brand, layout, radius, spacing, useTheme } from '@/theme';
@@ -17,15 +18,19 @@ export function Sheet({ visible, onClose, locked, children }: PropsWithChildren<
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={locked ? undefined : onClose}>
-      <View style={styles.root}>
+      {/* Modals need their own gesture root on Android (sliders in the Filters sheet). */}
+      <GestureHandlerRootView style={styles.flex}>
+      <KeyboardAvoidingView style={styles.root} behavior="padding">
         <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: BACKDROP }]} onPress={locked ? undefined : onClose} importantForAccessibility="no" />
         <View
           accessibilityViewIsModal
           style={[styles.panel, { backgroundColor: colors.background, paddingBottom: insets.bottom, boxShadow: colors.shadowCard }]}>
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.tint, { backgroundColor: colors.elevatedTint }]} />
           <View style={[styles.handle, { backgroundColor: colors.borderStrong }]} />
           {children}
         </View>
-      </View>
+      </KeyboardAvoidingView>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -33,6 +38,7 @@ export function Sheet({ visible, onClose, locked, children }: PropsWithChildren<
 const BACKDROP = alpha(brand.black, 0.45);
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   root: { flex: 1, justifyContent: 'flex-end' },
   panel: {
     width: '100%',
@@ -42,5 +48,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.lg,
     paddingTop: spacing.xs,
   },
+  tint: { borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
   handle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: spacing.xs },
 });

@@ -8,10 +8,10 @@ import { BackButton } from './BackButton';
 const SIDE = 40;
 
 /** Back button on the left, title centred (deck 40, 45, 48). */
-export function ScreenHeader({ title, onBack }: { title: string; onBack: () => void }) {
+export function ScreenHeader({ title, onBack, close, backLabel }: { title: string; onBack: () => void; close?: boolean; backLabel?: string }) {
   return (
     <View style={styles.row}>
-      <BackButton onPress={onBack} />
+      <BackButton onPress={onBack} close={close} label={backLabel} />
       <AppText variant="heading" align="center" numberOfLines={1} style={styles.title}>
         {title}
       </AppText>

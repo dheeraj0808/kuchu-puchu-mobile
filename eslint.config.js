@@ -6,5 +6,12 @@ module.exports = defineConfig([
   expoConfig,
   {
     ignores: ["dist/*"],
-  }
+  },
+  {
+    // Guide §13 rule 2: no PII, tokens, OTPs or messages in logs. Logging goes
+    // through Sentry with scrubbing (later phase), never console.
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/__tests__/**"],
+    rules: { "no-console": "error" },
+  },
 ]);

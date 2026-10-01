@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ListScreen } from '@/components/ListScreen';
 import { SettingsGroup, SettingsRow } from '@/components/Settings';
 import { env } from '@/config/env';
+import { useBlocks } from '@/features/safety/useBlocks';
 import { useSessions } from '@/features/settings/sessions';
 import { t, type TranslationKey } from '@/i18n';
 import { maskEmail, maskPhone } from '@/lib/identifier';
@@ -18,6 +19,7 @@ import { maskEmail, maskPhone } from '@/lib/identifier';
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
   const sessions = useSessions();
+  const blocks = useBlocks();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -61,8 +63,13 @@ export default function SettingsScreen() {
 
       <SettingsGroup title={t('settings.privacySafety')}>
         <SettingsRow icon="eye-off-outline" title={t('settings.privacy')} onPress={comingSoon('settings.privacy')} />
-        <SettingsRow icon="cancel" title={t('settings.blocked')} onPress={comingSoon('settings.blocked')} />
-        <SettingsRow icon="shield-check-outline" title={t('settings.safety')} onPress={comingSoon('settings.safety')} />
+        <SettingsRow
+          icon="cancel"
+          title={t('settings.blocked')}
+          subtitle={blocks.data && blocks.data.length > 0 ? String(blocks.data.length) : null}
+          onPress={() => router.push('/settings/blocked')}
+        />
+        <SettingsRow icon="shield-check-outline" title={t('settings.safety')} onPress={() => router.push('/settings/safety')} />
       </SettingsGroup>
 
       <SettingsGroup>

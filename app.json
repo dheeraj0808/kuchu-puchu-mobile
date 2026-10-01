@@ -40,7 +40,38 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Kuchu Puchu uses your approximate area to show people near you. Your exact location is never shown to anyone.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#c76883",
+          "defaultChannel": "messages"
+        }
+      ],
+      "expo-image",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Kuchu Puchu uses the front camera for a 10-second live selfie that proves you're real. It's never shown on your profile.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose photos for your Kuchu Puchu profile.",
+          "cameraPermission": "Take photos for your Kuchu Puchu profile.",
+          "microphonePermission": false
+        }
+      ]
     ]
   }
 }

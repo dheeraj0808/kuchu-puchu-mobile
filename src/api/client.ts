@@ -13,7 +13,11 @@ type AuthedOptions = Omit<HttpOptions, 'accessToken'>;
  * A 403 REAUTH_REQUIRED opens the OTP step-up sheet and repeats the request once.
  */
 export function authedRequest<T>(path: string, options: AuthedOptions = {}): Promise<T> {
-  return withReauth(() => authedOnce<T>(path, options));
+  return withReauth(() => authedOnce<T>(path, options)).catch((err: unknown) => {
+    // 403 ACCOUNT_RESTRICTED from any request sends the user to screen 49.
+    session.reportRestriction(err);
+    throw err;
+  });
 }
 
 async function authedOnce<T>(path: string, options: AuthedOptions): Promise<T> {

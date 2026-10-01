@@ -13,6 +13,8 @@ interface StatusScreenProps {
   title: string;
   message: string;
   action: Pick<ComponentProps<typeof Button>, 'label' | 'icon' | 'variant' | 'onPress' | 'loading' | 'loadingLabel'>;
+  /** Optional second button under the main one. */
+  secondaryAction?: StatusScreenProps['action'];
   /** Small line under the button, e.g. "Error code: NET-7F3A". */
   caption?: string;
 }
@@ -22,7 +24,7 @@ interface StatusScreenProps {
  * double circle, a title, a message and one action pinned to the bottom.
  * Scrolls instead of clipping when the system font is scaled up.
  */
-export function StatusScreen({ icon, title, message, action, caption }: StatusScreenProps) {
+export function StatusScreen({ icon, title, message, action, secondaryAction, caption }: StatusScreenProps) {
   const { colors } = useTheme();
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: colors.background }]}>
@@ -44,6 +46,7 @@ export function StatusScreen({ icon, title, message, action, caption }: StatusSc
         </View>
         <View style={styles.footer}>
           <Button {...action} />
+          {secondaryAction ? <Button variant="plain" {...secondaryAction} /> : null}
           {caption ? (
             <AppText variant="caption" tone="subtle" align="center" selectable>
               {caption}

@@ -13,6 +13,7 @@ export const ErrorCode = {
   PhotoInvalidFile: 'PHOTO_INVALID_FILE',
   InvalidRequest: 'INVALID_REQUEST',
   PayloadTooLarge: 'PAYLOAD_TOO_LARGE',
+  InvalidInterests: 'INVALID_INTERESTS',
   // 401
   Unauthorized: 'UNAUTHORIZED',
   OtpInvalid: 'OTP_INVALID',
@@ -28,11 +29,15 @@ export const ErrorCode = {
   UserNotFound: 'USER_NOT_FOUND',
   ProfileNotFound: 'PROFILE_NOT_FOUND',
   MatchNotFound: 'MATCH_NOT_FOUND',
+  ReportTargetInvalid: 'REPORT_TARGET_INVALID',
   // 409
+  ProfileAlreadyExists: 'PROFILE_ALREADY_EXISTS',
   PhotoLimitReached: 'PHOTO_LIMIT_REACHED',
   DiscoveryNotReady: 'DISCOVERY_NOT_READY',
   InteractionAlreadyLiked: 'INTERACTION_ALREADY_LIKED',
   // 422
+  ProfileDobLocked: 'PROFILE_DOB_LOCKED',
+  Underage: 'UNDERAGE',
   ContactDetailsNotAllowed: 'CONTACT_DETAILS_NOT_ALLOWED',
   ContactSharingLocked: 'CONTACT_SHARING_LOCKED',
   PhotoFaceMismatch: 'PHOTO_FACE_MISMATCH',

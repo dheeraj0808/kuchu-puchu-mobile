@@ -5,6 +5,10 @@ import type {
   AuthTokens,
   DeviceSession,
   Me,
+  OnboardingStep,
+  Preferences,
+  Profile,
+  UserLocation,
   MessageResponse,
   RequestOtpBody,
   RequestOtpResponse,
@@ -32,6 +36,28 @@ import type {
 
 export const MOCK_OTP = '123456';
 
+/** 403 ACCOUNT_RESTRICTED details for the EXPO_PUBLIC_MOCK_ACCOUNT_STATUS setting, or null when active. */
+export function mockRestriction(now: number = Date.now()) {
+  if (env.mockAccountStatus === 'active') return null;
+  const banned = env.mockAccountStatus === 'banned';
+  return {
+    status: env.mockAccountStatus,
+    reasonCategory: 'harassment',
+    endsAt: banned ? null : new Date(now + 11 * 86_400_000).toISOString(),
+    appealAllowed: env.mockAppealAllowed,
+  };
+}
+
+/**
+ * Other mocks (verification) add fields to /auth/me and may move nextStep,
+ * without this file importing them (which would be circular).
+ */
+type MeExtension = (account: MockAccount) => Partial<Me>;
+const meExtensions: MeExtension[] = [];
+export function registerMeExtension(extension: MeExtension): void {
+  meExtensions.push(extension);
+}
+
 const RESEND_AFTER_SECONDS = 60;
 const EXPIRES_IN_SECONDS = 300;
 const ACCESS_TTL_SECONDS = 900;
@@ -42,6 +68,15 @@ const DEFAULT_IDENTIFIER = '+919876543210';
 
 type IdentifierType = RequestOtpBody['identifierType'];
 type ErrorFields = { status: number; code: string; details?: Record<string, unknown> };
+
+/** Server-side account state: where onboarding is and the saved profile. */
+export interface MockAccount {
+  nextStep: OnboardingStep;
+  profile: Profile | null;
+  preferences?: Preferences | null;
+  location?: UserLocation | null;
+  notificationsChoiceAt?: string | null;
+}
 
 interface MockSession {
   id: string;
@@ -60,7 +95,16 @@ export function createMockAuth(now: () => number = Date.now, delay = LATENCY_MS)
   /** identifier → epoch ms of the last code sent. */
   const sentAt = new Map<string, number>();
   const sessions = new Map<string, MockSession>();
-  const deleted = new Set<string>();
+  const accounts = new Map<string, MockAccount>();
+  /** New accounts start at EXPO_PUBLIC_AUTH_MOCK_NEXT_STEP (e.g. `profile`). */
+  const accountOf = (identifier: string): MockAccount => {
+    let account = accounts.get(identifier);
+    if (!account) {
+      account = { nextStep: env.authMockNextStep, profile: null };
+      accounts.set(identifier, account);
+    }
+    return account;
+  };
   let reauthSentAt: number | null = null;
   let counter = 0;
 
@@ -70,9 +114,17 @@ export function createMockAuth(now: () => number = Date.now, delay = LATENCY_MS)
     throw ApiError.fromResponse(status, { success: false, code, message: code, details, requestId: 'mock' }, null);
   };
 
-  const byAccess = (accessToken: string): MockSession => {
+  /** The session behind a token, without the restriction check (appeals, sign-out). */
+  const sessionOf = (accessToken: string): MockSession => {
     for (const s of sessions.values()) if (s.accessToken === accessToken) return s;
     return fail({ status: 401, code: ErrorCode.Unauthorized });
+  };
+  /** Every other authenticated call: a restricted account gets 403 ACCOUNT_RESTRICTED (guide M15). */
+  const byAccess = (accessToken: string): MockSession => {
+    const s = sessionOf(accessToken);
+    const restriction = mockRestriction(now());
+    if (restriction) fail({ status: 403, code: ErrorCode.AccountRestricted, details: restriction });
+    return s;
   };
 
   const rotate = (s: MockSession): AuthTokens => {
@@ -86,7 +138,7 @@ export function createMockAuth(now: () => number = Date.now, delay = LATENCY_MS)
       tokenType: 'Bearer',
       accessTokenExpiresIn: ACCESS_TTL_SECONDS,
       refreshTokenExpiresAt: new Date(now() + 7 * DAY_MS).toISOString(),
-      user: mockUser(s.identifier, s.identifierType),
+      user: mockUser(s.identifier, s.identifierType, accountOf(s.identifier).nextStep),
     };
   };
 
@@ -121,6 +173,16 @@ export function createMockAuth(now: () => number = Date.now, delay = LATENCY_MS)
   };
 
   return {
+    /** For other mocks (profile): the account behind an access token. */
+    accountFor(accessToken: string): MockAccount {
+      return accountOf(byAccess(accessToken).identifier);
+    },
+
+    /** Same, but allowed while restricted (POST /account/appeals). */
+    accountForUnrestricted(accessToken: string): MockAccount {
+      return accountOf(sessionOf(accessToken).identifier);
+    },
+
     async requestOtp(body: RequestOtpBody): Promise<RequestOtpResponse> {
       await wait();
       const last = sentAt.get(body.identifier);
@@ -138,7 +200,6 @@ export function createMockAuth(now: () => number = Date.now, delay = LATENCY_MS)
       const sent = sentAt.get(body.identifier);
       const expired = sent === undefined || now() - sent > EXPIRES_IN_SECONDS * 1000;
       if (expired || body.otp !== MOCK_OTP) fail({ status: 401, code: ErrorCode.OtpInvalid });
-      deleted.delete(body.identifier);
       return openSession(body.identifier, body.identifierType, body.deviceName ?? 'This phone');
     },
 
@@ -159,7 +220,17 @@ export function createMockAuth(now: () => number = Date.now, delay = LATENCY_MS)
     async fetchMe(accessToken: string): Promise<Me> {
       await wait();
       const s = byAccess(accessToken);
-      return { ...mockUser(s.identifier, s.identifierType), profile: null, plan: 'plus' };
+      const account = accountOf(s.identifier);
+      const extra = Object.assign({}, ...meExtensions.map((extend) => extend(account))) as Partial<Me>;
+      return {
+        ...extra,
+        ...mockUser(s.identifier, s.identifierType, account.nextStep),
+        profile: account.profile,
+        preferences: account.preferences ?? null,
+        location: account.location ?? null,
+        notificationsChoiceAt: account.notificationsChoiceAt ?? null,
+        plan: 'plus',
+      };
     },
 
     async listSessions(accessToken: string): Promise<DeviceSession[]> {
@@ -222,7 +293,7 @@ export function createMockAuth(now: () => number = Date.now, delay = LATENCY_MS)
       const fresh = current.reauthAt !== null && now() - current.reauthAt <= REAUTH_VALID_SECONDS * 1000;
       if (!fresh) fail({ status: 403, code: ErrorCode.ReauthRequired });
       for (const s of [...sessions.values()]) if (s.identifier === current.identifier) sessions.delete(s.id);
-      deleted.add(current.identifier);
+      accounts.delete(current.identifier);
       return { message: 'Account deleted' };
     },
   };
@@ -230,7 +301,7 @@ export function createMockAuth(now: () => number = Date.now, delay = LATENCY_MS)
 
 export type MockAuth = ReturnType<typeof createMockAuth>;
 
-function mockUser(identifier: string, type: IdentifierType) {
+function mockUser(identifier: string, type: IdentifierType, nextStep: OnboardingStep) {
   return {
     id: '00000000-0000-4000-8000-000000000001',
     email: type === 'email' ? identifier : null,
@@ -240,7 +311,7 @@ function mockUser(identifier: string, type: IdentifierType) {
     status: 'active' as const,
     role: 'user' as const,
     createdAt: '2026-10-01T00:00:00.000Z',
-    nextStep: env.authMockNextStep,
+    nextStep,
   };
 }
 

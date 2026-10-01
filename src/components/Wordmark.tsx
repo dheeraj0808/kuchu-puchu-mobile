@@ -3,8 +3,8 @@ import { t } from '@/i18n';
 import { AppText } from './AppText';
 
 interface WordmarkProps {
-  /** `large` is the Welcome hero; `small` is the in-app header mark. */
-  size?: 'large' | 'small';
+  /** `large` is the Welcome hero; `medium` the Discover header (deck 18); `small` other headers. */
+  size?: 'large' | 'medium' | 'small';
   /** White on the pink Welcome screen, pink everywhere else. */
   onPrimary?: boolean;
 }
@@ -13,7 +13,7 @@ interface WordmarkProps {
 export function Wordmark({ size = 'small', onPrimary = false }: WordmarkProps) {
   return (
     <AppText
-      variant={size === 'large' ? 'wordmark' : 'heading'}
+      variant={size === 'large' ? 'wordmark' : size === 'medium' ? 'display' : 'heading'}
       tone={onPrimary ? 'onPrimary' : 'primary'}
       accessibilityRole="header"
       accessibilityLabel={t('brand.name')}
